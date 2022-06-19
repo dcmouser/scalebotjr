@@ -6,9 +6,11 @@
 
 
 //---------------------------------------------------------------------------
-const char* doneWorkflowMessages[] = {"Workflow complete.", "Goodbye.", "Thank you.", "Job complete.", "Enjoy your coffee.","Have a nice day!", "Say hello to Sara.", "How is the coffee?", "Good luck!", 0};
+//const char* doneWorkflowMessages[] = {"Workflow complete.", "Goodbye.", "Thank you.", "Job complete.", "Enjoy your coffee.","Have a nice day.", "How is the coffee?", 0};
+const char* doneWorkflowMessages[] = {"Workflow complete.", 0};
 const char* JrModeInstructionLines[] = {"","%s's coffee?", "Weigh beans","Pour shot","Add water/milk",""};
-const char* welcomeMessages[] = {"Hello there.", "Good morning.", "How can I help you?"};
+//const char* welcomeMessages[] = {"Hello there.", "Good morning.", "How can I help you?",0};
+//const char* welcomeMessages[] = {"Hello there.", 0};
 //---------------------------------------------------------------------------
 
 
@@ -61,6 +63,8 @@ JrWorkflow::JrWorkflow() {
 	clearCoffeeSelection();
 	clearUserSelection();
 	setWarningMessage("");
+	
+	setWaterLevelLimits(0.0, 1.0, 0.10);
 }
 //---------------------------------------------------------------------------
 
@@ -193,10 +197,11 @@ void JrWorkflow::powerDownScale(JrScale *scalep) {
 
 
 //---------------------------------------------------------------------------
-void JrWorkflow::setOptions(int in_optionDebugLevel, bool in_optionRoundUp, int in_option7SegmentBrightness, int weightSmoothMode, int inoptionScaleMode, int inoptionSoftZero, int inoptionCalibrationTweakMethod) {
+void JrWorkflow::setOptions(int in_optionDebugLevel, bool in_optionRoundUp, int in_option7SegmentBrightness, int weightSmoothMode, int inoptionScaleMode, int inoptionSoftZero, int inoptionCalibrationTweakMethod, int in_optionAutoZero) {
 	optionDebugLevel = in_optionDebugLevel;
 	optionScaleMode = inoptionScaleMode;
 	optionSoftZero = inoptionSoftZero;
+	optionAutoZero = in_optionAutoZero;
 	jrscale1.optionDebugLevel = in_optionDebugLevel;
 	jrscale1.optionRoundUp = in_optionRoundUp;
 	jrscale2.optionDebugLevel = in_optionDebugLevel;
@@ -212,8 +217,8 @@ void JrWorkflow::setOptions(int in_optionDebugLevel, bool in_optionRoundUp, int 
 	lcdMatrix.setBrightness(in_option7SegmentBrightness);
 }
 
-void JrWorkflow::setOptions2(float inBeanContainerWeight, int in_optionStartingWorkflowMode, bool in_optionCheckWarnings) {
-	optionBeanContainerWeight = inBeanContainerWeight;
+void JrWorkflow::setOptions2(float inoptionBeanJarWeight, int in_optionStartingWorkflowMode, int in_optionCheckWarnings) {
+	optionBeanJarWeight = inoptionBeanJarWeight;
 	optionStartingWorkflowMode = in_optionStartingWorkflowMode;
 	optionCheckWarnings = in_optionCheckWarnings;
 }
@@ -301,14 +306,7 @@ void JrWorkflow::loopWorkflow() {
   
 
 
-  // startup calibration tweak
-  if (wantScheduleCalibrationTweak) {
-	scheduleCalibrationTweak();
-  }
-  if (scheduledCalibrationTweakMillis> 0 && ms > scheduledCalibrationTweakMillis) {
-    doScheduledCalibrationTweak();
-  }
- 
+
   // tare
   if (scheduledTareMillis> 0 && ms > scheduledTareMillis) {
     doScheduledTare();
@@ -323,6 +321,18 @@ void JrWorkflow::loopWorkflow() {
   doMultiLoopScales();
 
 
+  // startup calibration tweak
+  if (wantScheduleCalibrationTweak) {
+	scheduleCalibrationTweak();
+  }
+  if (scheduledCalibrationTweakMillis> 0 && ms > scheduledCalibrationTweakMillis) {
+    doScheduledCalibrationTweak();
+  } else if (optionAutoZero>=2) {
+	// CONTINUALLY try calibrating small weights
+	doContinuousCalibrationTweakForScaleIfStableSmall(&jrscale1);
+	doContinuousCalibrationTweakForScaleIfStableSmall(&jrscale2);
+  }
+
   
   // decide if we want to change what our ACTIVE scale is (jrscalep)
   // ATTN: we might not want to do this EVERY cycle
@@ -336,7 +346,17 @@ void JrWorkflow::loopWorkflow() {
 	displayWeight = manualBeanWeight;
 	}
 
-  workflowWeights[workflowMode] = displayWeight;
+
+	// update workfloweights
+	if (workflowMode == JrWorkflowMode_Espresso && workflowSubStepIndex == 4) {
+		// this is a more delicate time when we are waiting for espresso drops to finish flowing..
+		// and we dont want to update when cup is being MOVED to other scale or removed from platform
+		if (displayWeight>workflowWeights[workflowMode]) {
+			workflowWeights[workflowMode] = displayWeight;
+		}
+	} else {
+		workflowWeights[workflowMode] = displayWeight;
+	}
   
   // update timer
   if (isTimerRunning()) {
@@ -345,6 +365,16 @@ void JrWorkflow::loopWorkflow() {
   
   // see if any auto workflow stuff should happen
   checkAutoWorkflow();
+
+	// water level meter occasional update
+	updateWaterLevelOccasionally();
+
+
+	if (justWoke) {
+		if (wokeTime()>DefJustWokeMs) {
+			justWoke = false;
+		}
+	}
  }
 //---------------------------------------------------------------------------
 
@@ -359,7 +389,7 @@ void JrWorkflow::workflowModeChanges() {
   // force redisplay of info?
   clearDupeCheckers(true, true, true);
   // set/change preferred scale for workflow
-	setPreferredScaleIdForWorkflow();
+  setPreferredScaleIdForWorkflow();
   // update instructions
   showWorkflowModeInstructions();
   
@@ -369,6 +399,12 @@ void JrWorkflow::workflowModeChanges() {
   } else {
   	jrscale1.setWeightChangeSensitivity(JrWeightChangeSensitivityMode_High);
   	jrscale2.setWeightChangeSensitivity(JrWeightChangeSensitivityMode_High);
+  }
+  
+  // water level
+  if (workflowMode == JrWorkflowMode_None || justWoke) {
+  	// display water level
+	updateWaterLevelIfAppropriate();
   }
 }
 //---------------------------------------------------------------------------
@@ -390,13 +426,12 @@ bool JrWorkflow::advanceWorkflowMode(bool manualHuman) {
 			clearCoffeeSelection();
     	workflowMode = optionStartingWorkflowMode;
     } else {
-
     	if (workflowMode == JrWorkflowMode_Beans) {
     		// moving on from beans should clear any tare if done manually
     		smartGuessBeanWeightInJarIfAppropriate();
     		if (manualHuman) {
 	    		// clear the bean cup tare
-				doClearTare();
+					doClearTare();
     		}
     	}
 
@@ -456,16 +491,22 @@ void JrWorkflow::setWorkflowModeEnable(bool val) {
 	    doClearTare();
 			workflowMode = JrWorkflowMode_None;
 		}
-		// good time to recheck warnings?
-		checkWarnings();
 	}
 	//
 	workflowModeChanges();
 }
+//---------------------------------------------------------------------------
 
 
-void JrWorkflow::resumeSleepForceWorkflowOption(JrWorkflowStartModeEnum resumeMode, bool flagFirstStartup) {
-	if ((flagFirstStartup && optionStartupCalibrationTweak) || optionResumeCalibrationTweak) {
+
+
+
+
+
+
+//---------------------------------------------------------------------------
+void JrWorkflow::resumeFromSleepOrStart(JrWorkflowStartModeEnum resumeMode) {
+	if (optionAutoZero>0) {
 		wantScheduleCalibrationTweak = true;
 	}
 
@@ -474,29 +515,65 @@ void JrWorkflow::resumeSleepForceWorkflowOption(JrWorkflowStartModeEnum resumeMo
 		return;
 	} else if (resumeMode == JrWorkflowStartMode_Scale) {
 		setWorkflowModeEnable(false);
-//		if (optionStartupTare) {
-//			scheduleTare();
-//		}
 	} else if (resumeMode == JrWorkflowStartMode_Wf) {
 		setWorkflowModeEnable(true);
 	} else {
 		// shouldnt happen
 	}
+	
+	prepareForWake();
 }
 
-void JrWorkflow::firstStart(bool val, JrWorkflowStartModeEnum resumeMode) {
-	optionStartupTare = val;
+void JrWorkflow::firstStart(JrWorkflowStartModeEnum resumeMode) {
 	if (resumeMode==JrWorkflowStartMode_Last) {
 		resumeMode = JrWorkflowStartMode_Scale;
 	}
-	resumeSleepForceWorkflowOption(resumeMode, true);
+	resumeFromSleepOrStart(resumeMode);
+}
+//---------------------------------------------------------------------------
+
+
+
+
+
+
+//---------------------------------------------------------------------------
+void JrWorkflow::prepareForSleepEarly() { 
+  if (workflowMode == JrWorkflowMode_All) {
+    advanceWorkflowMode(true);
+    delay(500);
+  }
+}
+
+void JrWorkflow::prepareForSleepLate() { 
+	seg7a.setActive(false);
+	seg7b.setActive(false);
+	lcdMatrix.setActive(false);
+	//
+	jrscale1.prepareForSleep();
+	jrscale2.prepareForSleep();
+}
+
+
+
+void JrWorkflow::prepareForWake() { 
+	seg7a.setActive(true);
+	seg7b.setActive(true);
+	lcdMatrix.setActive(true);
+	jrscale1.prepareForWake();
+	jrscale2.prepareForWake();
+	// record last time we woke up
+	lastWokeTime = millis();
+	justWoke = true;
+	//
+	updateWaterLevelIfAppropriate();
 }
 //---------------------------------------------------------------------------
 
 
 
 //---------------------------------------------------------------------------
-void JrWorkflow::updateDisplays(bool force) {
+void JrWorkflow::updateDisplays(bool force, bool flagUpdateControlScreen) {
 	if (force) {
 		clearDupeCheckers(true, true, true);
 	}
@@ -702,7 +779,7 @@ void JrWorkflow::timerMaybeEnds() {
 //---------------------------------------------------------------------------
 void JrWorkflow::workflowDisplayEngage() {
   jrlcdp->clear();
-  updateDisplays(true);
+  updateDisplays(true, true);
 	showWorkflowModeInstructions();
 }
 
@@ -1037,13 +1114,14 @@ void JrWorkflow::updateTimerDisplay() {
   } else {
     char timeStr[16];
     jrConvertMsToNiceTimeBuf(timerElapsedMs, timeStr, optionShowTimerMs);
+    // 7 segment
+  	seg7a.printElapsedTime(timerElapsedMs);
+
     if (timerAsterisk) {
     	sprintf(str, "Timer: %s*", timeStr);    	
     } else {
     	sprintf(str, "Timer: %s", timeStr);
     }
-    // 7 segment
-  	seg7a.printElapsedTime(timerElapsedMs);
   }
   
   // show it
@@ -1210,8 +1288,15 @@ void JrWorkflow::checkAutoWorkflow() {
 			workflowSubStepIndex = 4;
 			// provide some feedback
 			wfSignifyAutoStep();
-		} else if (workflowSubStepIndex == 4 && millis()-timerEndMillis > wfWaitAfterTimerEndToAdvanceMode) {
+			// we would like to swtich to a more sensitive mode to detect end of espresso
+			jrscale1.setWeightChangeSensitivity(JrWeightChangeSensitivityMode_VeryHigh);
+			jrscale2.setWeightChangeSensitivity(JrWeightChangeSensitivityMode_VeryHigh);
+			jrscale1.resetLastChangeTimes();
+			jrscale2.resetLastChangeTimes();
+		} else if (workflowSubStepIndex == 4 && (isWeightStabilized(wfStableTimePostRealEndPourMs) || (millis()-timerEndMillis > wfWaitAfterTimerEndToAdvanceMode) || (getMostWeightedScalep()==&jrscale1) || (isTornWeightBelow(0)))) {
+			// ok espresso is truly done (cup removed or very stabilized)
 			// advance to all mode, which will record the end weight, etc.
+			// ATTN: note there is some bug that puts it here and beepign incessantly
 			advanceWorkflowMode(false);
 			// provide some feedback?
 			// should we will skip providing feedback for this since its just a little after the timer stop feedback?
@@ -1229,11 +1314,20 @@ void JrWorkflow::checkAutoWorkflow() {
 			// weight of drink is stable so remember it
 			lastPositiveWeight = jrscalep->getDisplayWeight();
 		} else if (isTornWeightBelow(0)) {
+			// cup removed
 			workflowWeights[JrWorkflowMode_All] = lastPositiveWeight;
+			if (isWeightStabilized(wfStableWeightElapsedTimeCupRemovedAtEnd) && lastPositiveWeight>0.0 && (currentRecipe==-1 || isRecipeIndexDone) ) {
+				// cup has been gone long enough let's mark it as DONE
+				advanceWorkflowMode(false);
+				// provide some feedback?
+				// should we will skip providing feedback for this since its just a little after the timer stop feedback?
+				wfSignifyAutoStep();
+				return;
+			}
 		}
 	}
 	
-	return false;
+	return;
 }
 //---------------------------------------------------------------------------
 
@@ -1794,7 +1888,8 @@ void JrWorkflow::doSetCalibrationTweakForScale(JrScale *scalep) {
 	}
 	// IFF the scale has nominal weight on it (near 0), then we are going to tweak the 0 point to be truly 0
 	bool isStable = (scalep->getElapsedTimeSinceLastSignificantWeightChange() > wfCalStableWeightElapsedTime);
-	float weight = scalep->getUntornWeight();
+	//float weight = scalep->getUntornWeight();
+	float weight = scalep->getUntornUnTweakedWeight();
 	if (!isStable || abs(weight)>wfCalMaxWeightToConsiderZero) {
 		// give up and don't reschedule(!)
 		if (true || optionDebugLevel>0) {
@@ -1803,6 +1898,36 @@ void JrWorkflow::doSetCalibrationTweakForScale(JrScale *scalep) {
 		scalep->resetCalibrationTweaks();
 		return;
 	}
+	scalep->doSetCalibrationTweakForScaleFromRawWeight();
+}
+
+
+
+void JrWorkflow::doContinuousCalibrationTweakForScaleIfStableSmall(JrScale *scalep) {
+	// ATTN: this broke 5/28/22 -- attempting to fix
+	if (!scalep) {
+		return;
+	}
+
+	float weight = scalep->getUntornWeight();
+	if (abs(weight)<0.05) {
+		// already close enough to 0 no need to tweak
+		return;
+	}
+
+	// IFF the scale has nominal weight on it (near 0), then we are going to tweak the 0 point to be truly 0
+	bool isStable = (scalep->getElapsedTimeSinceLastSignificantWeightChange() > wfCalStableWeightElapsedTime);
+	if (!isStable) {
+		return;
+	}
+
+	float weightut = scalep->getUntornUnTweakedWeight();
+	if (abs(weightut)>wfCalMaxWeightToConsiderZeroContinuous) {
+		return;
+	}
+	//Serial.print("untorn untweaked weight: ");
+	//Serial.println(weight);
+	// tweak it
 	scalep->doSetCalibrationTweakForScaleFromRawWeight();
 }
 //---------------------------------------------------------------------------
@@ -1856,32 +1981,33 @@ void JrWorkflow::setUsersLastCoffee(uint8_t inCoffeeId, char* inCoffeeLabel, uin
 
 
 //---------------------------------------------------------------------------
-void JrWorkflow::smartGuessBeanWeightInJarIfAppropriate() {
+bool JrWorkflow::smartGuessBeanWeightInJarIfAppropriate() {
 	if (workflowWeights[JrWorkflowMode_Beans] > wfMinBeanWeightToAssumeInContainer) {
 		// not needed
-		return;
+		return false;
 	}
 
 	// minimal bean weight detected when they advanced mode.. let's see if maybe we can guess that they started with beans already in jar instead of taring
 	float allWeight = jrscalep->getInternalTare();
-	float guessedBeanWeight = allWeight - optionBeanContainerWeight;
+	float guessedBeanWeight = allWeight - optionBeanJarWeight;
 	if (guessedBeanWeight>wfBeanWeightToAssumeInContainerMin && guessedBeanWeight<wfBeanWeightToAssumeInContainerMax) {
 		// ok!
 		// let's show it
 		//Serial.print("ATTN: In smartguess 1 ");
-		jrscalep->setInternalTare(optionBeanContainerWeight);
+		jrscalep->setInternalTare(optionBeanJarWeight);
 		//Serial.println(guessedBeanWeight);
 		workflowWeights[JrWorkflowMode_Beans] = guessedBeanWeight;
 		// force show and delay
-		updateDisplays(true);
+		updateDisplays(true, true);
 		eventCallbackFp(JrEventCallbackEnum_PlaySoundAndWait);
 		//delay(500);
 		//jrPlaySound(DefSoundTypeMenuMove,false);
-		return;
+		return true;
 	}
 	
 	// fall back on last good weight seen
 	workflowWeights[JrWorkflowMode_Beans] = wfGetLastPositiveBeanWeight();
+	true;
 }
 //---------------------------------------------------------------------------
 
@@ -2017,33 +2143,6 @@ void JrWorkflow::setup7Segments(uint8_t addrA, uint8_t addrB) {
 //---------------------------------------------------------------------------
 
 
-//---------------------------------------------------------------------------
-void JrWorkflow::prepareForSleepEarly() { 
-  if (workflowMode == JrWorkflowMode_All) {
-    advanceWorkflowMode(true);
-    delay(500);
-  }
-}
-
-void JrWorkflow::prepareForSleepLate() { 
-	seg7a.setActive(false);
-	seg7b.setActive(false);
-	lcdMatrix.setActive(false);
-	//
-	jrscale1.prepareForSleep();
-	jrscale2.prepareForSleep();
-}
-
-
-
-void JrWorkflow::prepareForWake() { 
-	seg7a.setActive(true);
-	seg7b.setActive(true);
-	lcdMatrix.setActive(true);
-	jrscale1.prepareForWake();
-	jrscale2.prepareForWake();
-}
-//---------------------------------------------------------------------------
 
 
 
@@ -2075,7 +2174,10 @@ void JrWorkflow::updateMatrixImageForWorkflowMode() {
 	} else if (workflowMode==JrWorkflowMode_Espresso) {
 		lcdMatrix.printLetter(stepStartChar+offset+3);
 	} else if (workflowMode==JrWorkflowMode_All) {
-		lcdMatrix.printLetter(stepStartChar+offset+4);
+		int letterOffset;
+		letterOffset = stepStartChar+offset+4;
+		letterOffset += currentRecipeStepIndex;
+		lcdMatrix.printLetter(letterOffset);
 	} else {
 		// shouldnt exit
 		lcdMatrix.clear();
@@ -2092,13 +2194,14 @@ void JrWorkflow::checkWarnings() {
 	// force refresh
 	clearDupeCheckers(false,true,false);
 
-	if (!optionCheckWarnings) {
+	if (optionCheckWarnings==0) {
 		setWarningMessage("");
 		return;
 	}
 
-	// test
-	setWarningMessage("!LOW WATER!");
+	// this is now done elsewhere.. any other warnings to check?
+	//setWarningMessage("!LOW WATER!");
+	updateWaterLevelIfAppropriate();
 }
 //---------------------------------------------------------------------------
 
@@ -2256,6 +2359,7 @@ void JrWorkflow::deltaRecipe(int delta) {
 
 void JrWorkflow::newRecipeStarts() {
 	currentRecipeStepIndex = 0;
+	isRecipeIndexDone = false;
 	// set prior target weight to current weight
 	priorRecipeStepTargetWeight = workflowWeights[JrWorkflowMode_Espresso];
 	strcpy(ingredientLabel,"");
@@ -2265,7 +2369,7 @@ void JrWorkflow::newRecipeStarts() {
 
 
 void JrWorkflow::advanceRecipeStep() {
-	if (currentRecipeStepIndex==-1) {
+	if (isRecipeIndexDone) {
 		// already done nothing more to do
 		return;
 	}
@@ -2274,7 +2378,7 @@ void JrWorkflow::advanceRecipeStep() {
 	int recipeStepStringIndex = getRecipeIngredientIndex(currentRecipe, currentRecipeStepIndex);
 	if (recipeStepStringIndex==-1) {
 		// all done!
-		currentRecipeStepIndex = -1;
+		isRecipeIndexDone = true;
 		// ATTN: unfinished
 	} else {
 		// we have advanced; store current met target as previous
@@ -2314,7 +2418,8 @@ void JrWorkflow::clearRecipe() {
 	strcpy(recipeLabel,"");
 	strcpy(ingredientLabel,"");
 	currentRecipe = -1;
-	currentRecipeStepIndex = -1;
+	currentRecipeStepIndex = 0;
+	isRecipeIndexDone = true;
 	recipeChanges();
 }
 
@@ -2362,7 +2467,7 @@ void JrWorkflow::displayRecipeIngredientStepInfo() {
 	jrFloatToStr(fbuf1, (currentRecipeStepTargetWeight-priorRecipeStepTargetWeight), 1, 0);
 	jrFloatToStr(fbuf2, currentRecipeStepTargetWeight, 1, 0);
 	char suffix[5];
-	if (currentRecipeStepIndex==-1) {
+	if (isRecipeIndexDone) {
 		strcpy(suffix,"!");
 	} else {
 		strcpy(suffix,"");
@@ -2375,11 +2480,14 @@ void JrWorkflow::displayRecipeIngredientStepInfo() {
   jrpadstr(str, 20);
   jrlcdp->setCursor ( 0, 2 );
 	jrlcdp->print(str);
+	
+	// update workflow display matrix image
+	updateMatrixImageForWorkflowMode();
 }
 
 
 void JrWorkflow::autoAdvanceRecipeIngredientStepIfAppropriate() {
-	if (currentRecipeStepIndex==-1) {
+	if (isRecipeIndexDone) {
 		// already done nothing more to do
 		return;
 	}
@@ -2410,7 +2518,7 @@ bool JrWorkflow::workflowSafeToAdvance() {
 		// minimal bean weight detected when they advanced mode.. let's see if maybe we can guess that they started with beans already in jar instead of taring
 		// this is from smartGuessBeanWeightInJarIfAppropriate
 		float allWeight = jrscalep->getInternalTare();
-		float guessedBeanWeight = allWeight - optionBeanContainerWeight;
+		float guessedBeanWeight = allWeight - optionBeanJarWeight;
 		//Serial.print(guessedBeanWeight);
 		if (guessedBeanWeight>wfBeanWeightToAssumeInContainerMin && guessedBeanWeight<wfBeanWeightToAssumeInContainerMax) {
 			// ok!
@@ -2577,3 +2685,149 @@ void JrWorkflow::settleMeasureScaleWeight(JrScale* scalep) {
 }
 //---------------------------------------------------------------------------
 
+
+
+	
+	
+
+
+
+
+
+
+//---------------------------------------------------------------------------
+void JrWorkflow::setWaterLevelLimits(float min, float max, float lowThreshold) {
+	waterLevelmin = min;
+	waterLevelmax = max;
+	waterLevelLowThreshold = lowThreshold;
+}
+
+
+void JrWorkflow::displayWaterLevelGraphic() {
+  bool flagWarn = (waterLevel < waterLevelLowThreshold);
+
+  lcdMatrix.drawLevel(waterLevel, waterLevelmin, waterLevelmax, optionCheckWarnings, flagWarn);
+  
+  // ATTN: TEST
+  if (false) {
+	Serial.print("ATTN: water level: ");
+	Serial.println(waterLevel);
+  }
+}
+//---------------------------------------------------------------------------
+
+	
+	
+//---------------------------------------------------------------------------
+void JrWorkflow::updateWaterLevelOccasionally() {
+  if (optionCheckWarnings==0) {
+	  // they have disabled water check
+	  return;
+  }
+
+	unsigned long updateInterval = DefWaterLevelUpdateFrequencyNormal;
+
+	if (waterCheckCycleCountdown>0) {
+		updateInterval = DefWaterLevelUpdateFrequencyVeryFastWithinCycle;
+	} else if (waterLevel < waterLevelLowThreshold) {
+		updateInterval = DefWaterLevelUpdateFrequencyLowWater;
+	} else if (workflowMode != JrWorkflowMode_None) {
+		// only update in non-workflow mode
+		updateInterval = DefWaterLevelUpdateFrequencyWorkflow;
+	}
+	
+	if (millis()-waterLevelLastUpdateTime > updateInterval) {
+		// update water
+		updateWaterLevel();
+		// either decrease cycle count or reset it
+		if (waterCheckCycleCountdown>0) {
+			--waterCheckCycleCountdown;
+		} else {
+			// first call of new cycle window -- this will happen only if we FINISH a window and THEN a new interval passed and new window starts
+			if (updateInterval>DefWaterLevelUpdateFrequencyVeryFastWithinCycle) {
+				// this test should not be needed
+				waterCheckCycleCountdown = DefWaterCheckCyclesPerWindow;
+			}
+		}
+  }
+
+}
+
+
+void JrWorkflow::updateWaterLevelIfAppropriate() {
+  if (optionCheckWarnings==0) {
+	  // they have disabled water check
+	  return;
+  }
+  startWaterLevelCheckingCycle();
+  updateWaterLevel();
+}
+
+
+void JrWorkflow::startWaterLevelCheckingCycle() {
+	waterCheckCycleCountdown = DefWaterCheckCyclesPerWindow;
+}
+//---------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+//---------------------------------------------------------------------------
+void JrWorkflow::setupRangefinder(JrRangeFinder* injrRangeFinderp) {
+	jrRangeFinderp = injrRangeFinderp;
+	jrRangeFinderp->begin();
+};
+
+
+void JrWorkflow::updateWaterLevel() {
+	// update time
+	waterLevelLastUpdateTime = millis();
+
+	// update value from sensor
+	// set value to -1 to say NOTHING TO DISPLAY (vs 0 for empty water)
+	jrRangeFinderp->loop();
+
+	// get water level
+	waterLevel = 1.0 - jrRangeFinderp->getSmoothedRangeNormalized();
+
+
+  if (waterLevel < waterLevelLowThreshold) {
+	  setWarningMessage("!LOW WATER!");
+  } else {
+	  setWarningMessage("");
+  }
+
+	// now display
+  if (workflowMode == JrWorkflowMode_None || waterLevel < waterLevelLowThreshold) {
+  	// display water level
+  	displayWaterLevelGraphic();
+  }
+}
+//---------------------------------------------------------------------------
+
+
+//---------------------------------------------------------------------------
+unsigned long JrWorkflow::wokeTime() {
+	return millis()-lastWokeTime;
+}
+//---------------------------------------------------------------------------
+
+
+//---------------------------------------------------------------------------
+JrScale* JrWorkflow::getMostWeightedScalep() {
+	float w1 = jrscale1.getUntornWeight();
+	float w2 = jrscale2.getUntornWeight();
+	float delta = w1-w2;
+	if (delta>DefWeightDeltaThresholdMostWeightedScale) {
+		return &jrscale1;
+	} else if (delta<-1*DefWeightDeltaThresholdMostWeightedScale) {
+		return &jrscale2;
+	}
+	return NULL;
+}
+//---------------------------------------------------------------------------

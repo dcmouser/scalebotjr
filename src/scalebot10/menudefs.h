@@ -11,7 +11,7 @@ extern void mDynParamDebug(uint8_t line);
 extern void mDynParamBeep(uint8_t line);
 extern void mDynParamRoundUp(uint8_t line);
 extern void mDynParamSoftZero(uint8_t line);
-extern void mDynParamStartupTare(uint8_t line);
+extern void mDynParamAutoZero(uint8_t line);
 extern void mDynParam7SegBrightness(uint8_t line);
 extern void mDynParamStartMode(uint8_t line);
 
@@ -158,7 +158,8 @@ extern void mDynParamOptionCheckWarnings(uint8_t line);
     LCDML_addAdvanced (39 , LCDML_0_2       , 6  , NULL,          ""                  , mDynParamScaleMode,              0,   _LCDML_TYPE_dynParam);
     LCDML_addAdvanced (40 , LCDML_0_2       , 7  , NULL,          ""                  , mDynParamSmoothMode,              0,   _LCDML_TYPE_dynParam);
     LCDML_addAdvanced (41 , LCDML_0_2       , 8  , NULL,          ""                  , mDynParamCalibrationTweakMethod,  0,   _LCDML_TYPE_dynParam);
-    LCDML_addAdvanced (42 , LCDML_0_2       , 9  , lcdmMenuHide,          ""                  , mDynParamStartupTare,            0,   _LCDML_TYPE_dynParam);
+    //LCDML_addAdvanced (42 , LCDML_0_2       , 9  , lcdmMenuHide,          ""                  , mDynParamAutoZero,            0,   _LCDML_TYPE_dynParam);
+    LCDML_addAdvanced (42 , LCDML_0_2       , 9  , NULL,          ""                  , mDynParamAutoZero,            0,   _LCDML_TYPE_dynParam);
     LCDML_addAdvanced (43 , LCDML_0_2       , 10 , NULL,          ""                  , mDynParamCalibrationWeight,            0,   _LCDML_TYPE_dynParam);
     LCDML_addAdvanced (44 , LCDML_0_2       , 11 , NULL,          ""                  , mDynParamSleep,                  0,   _LCDML_TYPE_dynParam);
     LCDML_addAdvanced (45 , LCDML_0_2       , 12 , NULL,          ""                  , mDynParamDebug,                  0,   _LCDML_TYPE_dynParam);

@@ -41,15 +41,15 @@ bool readStoredEepromData() {
     ++addr;
   }
 
-  EEPROM.get(DefJreAddressUserDataStart + 50, optionTareOnStart);
+  EEPROM.get(DefJreAddressUserDataStart + 50, optionAutoZero);
   EEPROM.get(DefJreAddressUserDataStart + 51, optionRoundUp);
-
-  EEPROM.get(DefJreAddressUserDataStart + 52, optionCalibrationWeight);
-  EEPROM.get(DefJreAddressUserDataStart + 54, optionBeanJarWeight);
 
   EEPROM.get(DefJreAddressUserDataStart + 56, optionCoffeeSelect);
 
   EEPROM.get(DefJreAddressUserDataStart + 57, optionCheckWarnings);
+
+  EEPROM.get(DefJreAddressUserDataStart + 60, optionCalibrationWeight);
+  EEPROM.get(DefJreAddressUserDataStart + 64, optionBeanJarWeight);
 
   // workflow reads its settings
   jrworkflow.readStoredEepromData(DefJreAddressUserDataStart+100);
@@ -86,15 +86,15 @@ bool writeStoredEepromData() {
     ++addr;
   }
 
-  EEPROM.put(DefJreAddressUserDataStart + 50, optionTareOnStart);
+  EEPROM.put(DefJreAddressUserDataStart + 50, optionAutoZero);
   EEPROM.put(DefJreAddressUserDataStart + 51, optionRoundUp);
-
-  EEPROM.put(DefJreAddressUserDataStart + 52, optionCalibrationWeight);
-  EEPROM.put(DefJreAddressUserDataStart + 54, optionBeanJarWeight);
 
   EEPROM.put(DefJreAddressUserDataStart + 56, optionCoffeeSelect);
 
   EEPROM.put(DefJreAddressUserDataStart + 57, optionCheckWarnings);
+
+  EEPROM.put(DefJreAddressUserDataStart + 60, optionCalibrationWeight);
+  EEPROM.put(DefJreAddressUserDataStart + 64, optionBeanJarWeight);
   
   // workflow saves its settings
   jrworkflow.writeStoredEepromData(DefJreAddressUserDataStart+100);

@@ -1,8 +1,8 @@
 //---------------------------------------------------------------------------
 // app stuff for about box and info
 #define DefAppLabelStr "ScaleBot Jr"
-#define DefAppVersionStr "3.37"
-#define DefAppDateStr "6/6/22"
+#define DefAppVersionStr "3.49"
+#define DefAppDateStr "6/17/22"
 #define DefAppAuthorStr "J. Reichler"
 #define DefAppEmailStr "mouser@donationcoder.com"
 
@@ -87,7 +87,7 @@ void setup() {
   pushOptionsToObjects2();
 
   // initial tare
-  jrworkflow.firstStart(optionTareOnStart, optionStartMode);
+  jrworkflow.firstStart(optionStartMode);
   //
   //// start in workflow mode?
   //jrworkflow.setWorkflowModeEnable(false);
@@ -127,11 +127,15 @@ void loop() {
   // scale mode
   if (!sleepingMode) {
     if (mode==DefModeWorkflow) {
-      loopScaleAndWorkflow();
+      loopScaleAndWorkflow(true);
     }
     // menu mode
     if (mode==DefModeMenu) {
       loopMenu();
+      // scale also even in menu mode?
+      if (false) {
+        loopScaleAndWorkflow(false);
+      }
     }
   }
 

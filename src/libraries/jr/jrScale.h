@@ -25,7 +25,7 @@
 enum JrEventCallbackEnum {JrEventCallbackEnum_Interaction, JrEventCallbackEnum_WfAdvance, JrEventCallbackEnum_CoffeeDone, JrEventCallbackEnum_PlaySoundAndWait, JrEventCallbackEnum_PlayBackgroundSound, JrEventCallbackEnum_PlayErrorSound, JrEventCallbackEnum_CoffeeSelect};
 typedef void (*VoidVoidCallbackFpT)();
 typedef void (*VoidEventCallbackFpT) (JrEventCallbackEnum);
-enum JrWeightChangeSensitivityMode {JrWeightChangeSensitivityMode_High, JrWeightChangeSensitivityMode_Low};
+enum JrWeightChangeSensitivityMode {JrWeightChangeSensitivityMode_VeryHigh, JrWeightChangeSensitivityMode_High, JrWeightChangeSensitivityMode_Low};
 //enum JrWeightSmoothingMode { JrWeightSmoothingModeInstant=0, JrWeightSmoothingModeSlow, JrWeightSmoothingModeAdaptive, JrWeightSmoothingModeNoiseReject1, JrWeightSmoothingModeWindowedOld, JrWeightSmoothingModeWindowed, JrWeightSmoothingModeWindowMost, JrWeightSmoothingModeGap};
 enum JrWeightSmoothingMode { JrWeightSmoothingModeInstant=0, JrWeightSmoothingModeSlow, JrWeightSmoothingModeGap};
 
@@ -51,6 +51,7 @@ protected:
 	float lastRawWeight=0.0;
 	float lastRawWeightSmoothed=0.0;
 	float tornWeight=0.0;
+	float untornUntweakedWeight=0.0;
 	float untornWeight=0.0;	
 	float displayWeight=0.0;
 	float internalTare = 0.0;
@@ -116,6 +117,9 @@ protected:
 	const float significantWeightChangeForTimeTrackingDown_High = -1.5;	//
 	const float significantWeightChangeForTimeTrackingUp_Low = 1.5;			// it may be that what we consider sig weight change may depend on the workflow
 	const float significantWeightChangeForTimeTrackingDown_Low = -1.5;	//
+
+	const float significantWeightChangeForTimeTrackingUp_VeryHigh = 0.3;			// it may be that what we consider sig weight change may depend on the workflow
+	const float significantWeightChangeForTimeTrackingDown_VeryHigh = -0.3;	//
 	//
   const float significantWeightIncreaseForWindowedTimeTrackingUp = 0.5;		// should go up this much in each window of requiredRisingWindowTooCloseDurationMs time to be counted consecutive
   const float significantWeightDecreaseorWindowedTimeTrackingDown = -10;			// should not go down this much within a requiredRisingWindowTooLongFailDurationMs time window
@@ -169,6 +173,7 @@ public:
 	float getRawWeightSmoothed() { return rawWeightSmoothed;};
 	float getTornWeight() { return tornWeight;};
 	float getUntornWeight() { return untornWeight;}
+	float getUntornUnTweakedWeight() { return untornUntweakedWeight;}
 	float getCalibratedPlatformRawWeight() { return calibratedPlatformRawWeight;};
 	float getCalibrationFactor() { return calibrationFactor;};
 
@@ -184,7 +189,8 @@ public:
 public:
 	void applySmoothRawWeightAlgorithm();
 	void computeTornUntornWeightFromRawWeightSmoothed();
-
+public:
+	void resetLastChangeTimes();
 };
 //---------------------------------------------------------------------------
 

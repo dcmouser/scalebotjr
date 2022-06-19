@@ -14,7 +14,7 @@ extern LCDMenuLib2_menu* jrGlobalLcdMenuItemp;
 
 
 //---------------------------------------------------------------------------
-#define DefTimeoutForJrNetReply 3000
+#define DefTimeoutForJrNetReply 5000
 //---------------------------------------------------------------------------
 
 
@@ -29,12 +29,12 @@ void mDynParamSleep(uint8_t line) {
   }
 }
 void mDynParamDebug(uint8_t line) {
-  optionDebugLevel = handleDynamicParamList(F("Debug mode"), line, optionDebugLevel, DefParamOptionsListDebugLevel);
+  optionDebugLevel = handleDynamicParamList(F("Debug mode"), line, optionDebugLevel, DefParamOptionsListOffLowMediumHigh);
   pushOptionsToObjects();
 }
 
 void mDynParamBeep(uint8_t line) {
-  optionBeepMode = handleDynamicParamList(F("Beep level"), line, optionBeepMode, DefParamOptionsListBeepLevel);
+  optionBeepMode = handleDynamicParamList(F("Beep level"), line, optionBeepMode, DefParamOptionsListOffLowMediumHigh);
 }
 
 void mDynParamRoundUp(uint8_t line) {
@@ -48,8 +48,8 @@ void mDynParamSoftZero(uint8_t line) {
   pushOptionsToObjects();
 }
 
-void mDynParamStartupTare(uint8_t line) {
-  optionTareOnStart = handleDynamicParamList(F("Startup tare"), line, optionTareOnStart, DefParamOptionsListYesNo);
+void mDynParamAutoZero(uint8_t line) {
+  optionAutoZero = handleDynamicParamList(F("Auto zero"), line, optionAutoZero, DefParamOptionsAutoZero);
 }
 
 void mDynParam7SegBrightness(uint8_t line) {
@@ -80,7 +80,7 @@ void mDynParamCalibrationTweakMethod(uint8_t line) {
 //
 
 void mDynParamCalibrationWeight(uint8_t line) {
-  optionCalibrationWeight = handleDynamicParam(F("Calib. Wght"), line, optionCalibrationWeight, 50, 500);
+  optionCalibrationWeight = handleDynamicParam(F("Calib. Wght"), line, optionCalibrationWeight, 50.0, 500.0);
 }
 
 
@@ -97,7 +97,7 @@ void mDynParamWfStartsCoffeeSelect(uint8_t line) {
 
 
 void mDynParamOptionCheckWarnings(uint8_t line) {
-  optionCheckWarnings = handleDynamicParamList(F("Chk. Wat."), line, optionCheckWarnings, DefParamOptionsListYesNo);
+  optionCheckWarnings = handleDynamicParamList(F("Chk. Wat."), line, optionCheckWarnings, DefParamOptionsListCheckWarnings);
   pushOptionsToObjects2();
 }
 //---------------------------------------------------------------------------
@@ -234,7 +234,9 @@ void mMenuDoScale1Place0Weight(uint8_t param) {
 
 void mMenuDoScale1Place100gWeight(uint8_t param) {
   char buf[40];
-  sprintf(buf,"Place %dg on\nscale #1.",optionCalibrationWeight);
+  char weightbuf[20];
+  jrFloatToStr(weightbuf, optionCalibrationWeight, 1, 1);
+  sprintf(buf,"Place %sg on\nscale #1.",weightbuf, optionCalibrationWeight);
   handleDynamicPage(param, buf, DefStrThenClickButton, callbackDoScale1Place100gWeight, 1);
 }
 
@@ -244,7 +246,9 @@ void mMenuDoScale2Place0Weight(uint8_t param) {
 
 void mMenuDoScale2Place100gWeight(uint8_t param) {
   char buf[40];
-  sprintf(buf,"Place %dg on\nscale #2.",optionCalibrationWeight);
+  char weightbuf[20];
+  jrFloatToStr(weightbuf, optionCalibrationWeight, 1, 1);
+  sprintf(buf,"Place %sg on\nscale #2.",weightbuf, optionCalibrationWeight);
   handleDynamicPage(param, buf, DefStrThenClickButton, callbackDoScale2Place100gWeight, 1);
 }
 

@@ -103,11 +103,11 @@ void wakeupDevice() {
   // scale stuff
   jrworkflow.powerUp();
 
-  // in a workflow?
-  jrworkflow.resumeSleepForceWorkflowOption(optionStartMode, false);
+  // resume from sleep
+  jrworkflow.resumeFromSleepOrStart(optionStartMode);
 
   // lcds, etc.
-  jrworkflow.prepareForWake();
+  //jrworkflow.prepareForWake();
   
   // net helper board
   jrNetWakeFromSleep();

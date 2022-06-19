@@ -88,7 +88,7 @@ void doResetDisplayForMode(bool resetLocation) {
 
 //---------------------------------------------------------------------------
 void pushOptionsToObjects() {
-  jrworkflow.setOptions(optionDebugLevel, optionRoundUp, option7SegmentBrightness, optionWeightSmoothMode, optionScaleMode, optionSoftZero, optionCalibrationTweakMethod);
+  jrworkflow.setOptions(optionDebugLevel, optionRoundUp, option7SegmentBrightness, optionWeightSmoothMode, optionScaleMode, optionSoftZero, optionCalibrationTweakMethod, optionAutoZero);
 }
 
 void pushOptionsToObjects2() {

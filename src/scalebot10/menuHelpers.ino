@@ -131,6 +131,85 @@ int handleDynamicParam(const char *label, uint8_t line, int var, int vmin, int v
 
 
 
+//---------------------------------------------------------------------------
+int handleDynamicParam(const char *label, uint8_t line, float var, float vmin, float vmax) {
+  // check if this function is active (cursor stands on this line)
+
+  // give buzzer a change to update a bit so sound on turning dial isnt too weird
+  JrSemiUpdateBuzzer();
+
+  // initial fix of var
+  if (var<vmin) {
+    var = vmin;
+  }
+  if (var>vmax) {
+    var=vmax;
+  }
+  
+  char editIndicator[3];
+  strcpy(editIndicator,"");
+  if (line == LCDML.MENU_getCursorPos())
+  {
+    if (LCDML.BT_checkAny())
+    {
+      if (LCDML.BT_checkEnter())
+      {
+        // this function checks returns the scroll disable status (0 = menu scrolling enabled, 1 = menu scrolling disabled)
+        if (LCDML.MENU_getScrollDisableStatus() == 0) {
+          // disable the menu scroll function to catch the cursor on this point
+          // now it is possible to work with BT_checkUp and BT_checkDown in this function
+          // this function can only be called in a menu, not in a menu function
+          LCDML.MENU_disScroll();
+        }
+        else {
+          // enable the normal menu scroll function
+          LCDML.MENU_enScroll();
+        }
+        // do something..?
+      }
+
+      // This check have only an effect when MENU_disScroll is set
+      if(LCDML.BT_checkDown() || LCDML.BT_checkRight()) {
+        var+=rotaryEncoder.getAccelerationJumpSteps()/10.0;
+        if (var>vmax) {
+          var=vmax;
+        }
+      }
+
+      // This check have only an effect when MENU_disScroll is set
+      if(LCDML.BT_checkUp() || LCDML.BT_checkLeft()) {
+        var-=rotaryEncoder.getAccelerationJumpSteps()/10.0;
+        if (var<vmin) {
+          var = vmin;
+        }
+      }
+    }
+
+    // highlight if we are editing it
+    if(LCDML.MENU_getScrollDisableStatus() != 0) {
+      strcpy(editIndicator,"*");
+    }
+  }
+
+  // give buzzer a change to update a bit so sound on turning dial isnt too weird
+  JrSemiUpdateBuzzer();
+
+  char buf[24];
+  char varbuf[10];
+  jrFloatToStr(varbuf, var, 1, 12);
+  sprintf(buf, "%s: %s%s", label, varbuf, editIndicator);
+
+  // use the line from function parameters
+  jrlcd.setCursor(1, (line + _LCDML_DSIP_use_header));
+  jrlcd.print(buf);
+
+  // give buzzer a change to update a bit so sound on turning dial isnt too weird
+  JrSemiUpdateBuzzer();
+
+  return var;
+}
+//---------------------------------------------------------------------------
+
 
 
 

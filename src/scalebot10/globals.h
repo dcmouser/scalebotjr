@@ -5,6 +5,8 @@
 
 #include <jrWorkflow.h>
 #include <jrneokeys.h>
+//#include <jrRangeFinderAf6180.h>
+#include <jrRangeFinderSR04.h>
 
 
 
@@ -24,6 +26,15 @@ JrNeoKeyMatrixKeypad jrkeypad;
 //---------------------------------------------------------------------------
 
 
+//---------------------------------------------------------------------------
+// new rangefinder water levels
+//Adafruit_VL53L0X rangeFinderLox = Adafruit_VL53L0X();
+//JrRangeFinder jrRangeFinder;
+//Adafruit_VL6180X rangeFinderLox = Adafruit_VL6180X();
+//JrRangeFinderAf6180 jrRangeFinder(&rangeFinderLox,6,180,20);
+
+JrRangeFinderSR04 jrRangeFinder(10,11,10,100000,20,204,50);
+//---------------------------------------------------------------------------
 
 
 
@@ -56,7 +67,7 @@ uint8_t optionBeepMode = 1;
 uint8_t optionSleepDelay = 5;
 uint8_t optionDebugLevel = 0;
 uint8_t optionRoundUp = 0;
-uint8_t optionTareOnStart = 0;
+uint8_t optionAutoZero = 0;
 uint8_t optionWeightSmoothMode = 6; // window mode
 uint8_t optionScaleMode = 0;
 uint8_t optionSoftZero = 0;
@@ -73,12 +84,12 @@ uint8_t option7SegmentBrightness = 1;
 uint8_t optionMatrix8x8Brightness = 1;
 uint8_t optionStartMode = 1;
 //
-int optionCalibrationWeight = 100;
-int optionBeanJarWeight = 121;
+float optionCalibrationWeight = 100;
+float optionBeanJarWeight = 121;
 //
 uint8_t optionCoffeeSelect = 1;
 //
-bool optionCheckWarnings = true;
+uint8_t optionCheckWarnings = 1;
 //---------------------------------------------------------------------------
 
 
@@ -90,16 +101,17 @@ int wakingCycleCount = 0;
 
 //---------------------------------------------------------------------------
 const char* DefParamOptionsListYesNo[] = { "OFF", "ON", 0 };
-const char* DefParamOptionsListDebugLevel[] = { "OFF", "Low", "Med", "High", 0 };
-const char* DefParamOptionsListBeepLevel[] = { "OFF", "Low", "Med", "High", 0 };
+const char* DefParamOptionsListOffLowMediumHigh[] = { "OFF", "Low", "Med", "High", 0 };
 const char* DefParamOptionsStartMode[] = {"Last","Scale","WF",0};
 const char* DefParamOptionsSmoothMode[] = {"Inst.", "Slow", "Gap",0};
 const char* DefParamOptionsScaleMode[] = {"Auto","Dual", 0};
 const char* DefParamOptionsCalibTweak[] = {"None","Add","Mul",0};
+const char* DefParamOptionsAutoZero[] = {"Off","Wake","Cont.",0};
+const char* DefParamOptionsListCheckWarnings[] = {"Off","Warn","Bars","Dots",0};
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-const char* CoffeeBeanTypes[] = {"Papa N.G.", "Decaf Mex", "Guatemala", "Pg.Columb.", "Mex. Chiapas", "Kenya AA", "Ethiopian", "Unknown", "", "", 0};
+const char* CoffeeBeanTypes[] = {"Papa N.G.", "Decaf Mex", "Kenya AA", "Pg.Columb.", "Mex. Chiapas", "Guatemala", "Ethiopian", "Unknown", "", "", 0};
 uint8_t grindSettings[30] = {0};
 //---------------------------------------------------------------------------
 

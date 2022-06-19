@@ -4,16 +4,24 @@
 #include <ArduinoJson.h>
 
 #define JrnTestDelayMultiplier 10
+#define DefMaxReplyLen 160
 
 
 //---------------------------------------------------------------------------
-typedef StaticJsonDocument<300> JrTypedefStaticJsonDocument;
+typedef StaticJsonDocument<400> JrTypedefStaticJsonDocument;
 //---------------------------------------------------------------------------
 
 
 //---------------------------------------------------------------------------
+#define JrSerialSpeedMonitor 9600
 //#define JrSerialSpeed 9600
 #define JrSerialSpeed 115200 
+//---------------------------------------------------------------------------
+
+
+
+//---------------------------------------------------------------------------
+typedef bool (*TriggerCallbackFpT) (JrTypedefStaticJsonDocument &doc);
 //---------------------------------------------------------------------------
 
 
@@ -26,17 +34,21 @@ public:
 	T* serialp = NULL;
 	String clientName;
 	int clientId=0;
+	String versionIdStr;
 	int debugLevel = 1;
 	unsigned long sentCount = 0;
 	unsigned long recvCount = 0;
+protected:
+	TriggerCallbackFpT triggerfp = NULL;
 public:
 	char expectedReplyKey[20];
-	String lastReply;
+	char lastReply[DefMaxReplyLen];
 public:
-	JrNet(T* inSerialp, const String inClientName, int inClientId, int indebugLevel) {serialp=inSerialp; clientName = inClientName; clientId=inClientId; debugLevel = indebugLevel;};
+	JrNet(T* inSerialp, const String inClientName, int inClientId, String inVersionIdStr, int indebugLevel) {serialp=inSerialp; clientName = inClientName; clientId=inClientId; versionIdStr = inVersionIdStr; debugLevel = indebugLevel;};
 	~JrNet() {;};
 public:
 	virtual void setup(bool waitForSerial=false);
+	void setTriggerCallbackfp(TriggerCallbackFpT fp) { triggerfp = fp; }
 	void debugSerialBuffer();
 public:
 	bool loop();
@@ -48,9 +60,11 @@ public:
 public:
 	void handleError(const String &etype, const String &rawmsg, const char * err);
 public:
-	virtual bool processJsonCommand(const String &str, JrTypedefStaticJsonDocument &doc);
+	virtual bool processJsonCommand(JrTypedefStaticJsonDocument &doc);
+	virtual bool triggerCallbackOnUnhandledJsonCommand(JrTypedefStaticJsonDocument &doc);
 public:
 	int getClientId() {return clientId;}
+	const char* getVersionIdStrAsCharp() { return versionIdStr.c_str();};
 	void testDelay(int multiplier) {delay(multiplier*JrnTestDelayMultiplier);}
 public:
 	bool sendTestInfoRequest();
@@ -83,7 +97,7 @@ void JrNet<T>::setup(bool waitForSerial) {
   // put your setup code here, to run once:
   // Initialize serial
   if (debugLevel>0) {
-  	Serial.begin(9600);
+  	Serial.begin(JrSerialSpeedMonitor);
  		// wait for serial port to connect. Needed for native USB port only
   	if (waitForSerial) {
 	  	while (!Serial) {
@@ -97,7 +111,9 @@ void JrNet<T>::setup(bool waitForSerial) {
   // Print a welcome message
   if (debugLevel>1) {
   	Serial.print(clientName);
-  	Serial.println(" is alive.");
+	Serial.print(F(" v"));
+	Serial.print(versionIdStr);
+  	Serial.println(F(" is alive."));
   }
 	
 	// init the serial we communicate over
@@ -108,7 +124,7 @@ void JrNet<T>::setup(bool waitForSerial) {
   
   if (debugLevel>1) {
   	Serial.print(clientName);
-  	Serial.println(" serial port is active.");
+  	Serial.println(F(" serial port is active."));
   }
   if (debugLevel>1) {
   	debugSerialBuffer();
@@ -122,17 +138,17 @@ void JrNet<T>::setup(bool waitForSerial) {
 //---------------------------------------------------------------------------
 template<class T>
 void JrNet<T>::debugSerialBuffer() {
-	Serial.println("Debugging serial target buffer.");
+	Serial.println(F("Dbg serialbuf"));
 	
 	#ifdef SERIAL_RX_BUFFER_SIZE
-		Serial.print("SERIAL_RX_BUFFER_SIZE: ");
+		Serial.print(F("RXSIZE: "));
 		Serial.println(SERIAL_RX_BUFFER_SIZE);
-		Serial.print("SERIAL_TX_BUFFER_SIZE: ");
+		Serial.print(F("TXSIZE: "));
 		Serial.println(SERIAL_TX_BUFFER_SIZE);
 	#endif
 	
 	#ifdef SERIAL_BUFFER_SIZE
-		Serial.print("SERIAL_BUFFER_SIZE: ");
+		Serial.print(F("SIZE: "));
 		Serial.println(SERIAL_BUFFER_SIZE);
 	#endif
 }
@@ -147,11 +163,11 @@ void JrNet<T>::debugSerialBuffer() {
 template<class T>
 void JrNet<T>::handleError(const String &etype, const String &rawmsg, const char * err) {
 	if (debugLevel>0) {
-		Serial.print("* ERROR ");
+		Serial.print(F("* E "));
 		Serial.print(etype);
-		Serial.print(" raw message  ");
+		Serial.print(F(" r "));
 		Serial.print(rawmsg);
-		Serial.print(" error = ");
+		Serial.print(F(" e "));
   	Serial.println(err);
   }
 }
@@ -193,7 +209,7 @@ bool JrNet<T>::loop() {
 	// any data ready?
   while (this->serialp->available()) {
 		str =  this->serialp->readStringUntil('\n');
-		
+		//str =  this->serialp->readString();
 		//str = str.trim()
 		str.trim();
 		if (str=="") {
@@ -201,11 +217,14 @@ bool JrNet<T>::loop() {
 		}
 
   	if (debugLevel>1) {
-	  	Serial.println("--------------------");
+	  	Serial.println(F("-"));
   		Serial.print(clientName);
-  		Serial.print(" read1 of data: ");
+  		Serial.print(F(" r1: "));
   		Serial.println(str);
   	}
+	
+	// ATTN: TEST do nothing
+	//break;
 
 		// ATTN: test to see if split is broken
 		if (false) {
@@ -241,7 +260,7 @@ bool JrNet<T>::loopProcessReadLine(const String &str) {
 	}
   if (this->debugLevel>1) {
   	Serial.print(clientName);
-  	Serial.print(" read2 of data: ");
+  	Serial.print(F(" r2: "));
   	Serial.println(str);
   }
 
@@ -260,16 +279,16 @@ bool JrNet<T>::loopProcessReadLine(const String &str) {
   	// decoded json:
   	String prettyOut;
   	serializeJsonPretty(doc, prettyOut);
-  	Serial.print("Decoded: ");
+  	Serial.print(F("D: "));
     Serial.println(prettyOut);
   }
   
   // process it
-  this->processJsonCommand(str, doc);
+  this->processJsonCommand(doc);
 
 	// pretty print for debugging
   if (this->debugLevel>1) {
-  	Serial.println("--------------------\n");
+  	Serial.println(F("-="));
   }
 
   // success
@@ -300,14 +319,16 @@ void JrNet<T>::sendJsonDocument(JrTypedefStaticJsonDocument &doc) {
 	serializeJson(doc, outstr);
 	//	
   if (this->debugLevel>1) {
-		Serial.print("Sending out: ");
+		Serial.print(F("Snd: "));
    	Serial.println(outstr);
   }
   // send it
   //serializeJson(doc, *serialp);
   serialp->println(outstr);
+
+  // ATTN: disabling 6/16/22
   // needed?
-  serialp->flush();
+  //serialp->flush();
 }
 //---------------------------------------------------------------------------
 
@@ -340,7 +361,7 @@ void JrNet<T>::sendJsonDocument(JrTypedefStaticJsonDocument &doc) {
 
 //---------------------------------------------------------------------------
 template<class T>
-bool JrNet<T>::processJsonCommand(const String &str, JrTypedefStaticJsonDocument &doc) {
+bool JrNet<T>::processJsonCommand(JrTypedefStaticJsonDocument &doc) {
 	// process the command, return true on success
 
 	if (doc["c"]=="req") {
@@ -355,9 +376,11 @@ bool JrNet<T>::processJsonCommand(const String &str, JrTypedefStaticJsonDocument
 		return true;
 	} else if (doc["c"]=="dbg") {
 		// display something
-		const char* msg = doc["m"];
-		Serial.print("Debug message received from friend: ");
-		Serial.println(msg);
+  		if (debugLevel>1) {
+			const char* msg = doc["m"];
+			Serial.print(F("recv: "));
+			Serial.println(msg);
+		}
 		return true;
 	} else if (doc["c"]=="reply") {
 		// display something
@@ -365,20 +388,32 @@ bool JrNet<T>::processJsonCommand(const String &str, JrTypedefStaticJsonDocument
 		if (strcmp(req,expectedReplyKey)==0) {
 			// this is the reply we were waiting for
 			const char* msg = doc["m"];
-			lastReply = String(msg);
+			strcpy(lastReply,msg);
   		if (debugLevel>1) {
-  			Serial.print("Received expected reply: ");
-  			Serial.println(msg);
+  			Serial.print(F("erply: "));
+  			Serial.println(lastReply);
   		}
+  		// handled
+  		return true;
 		} else {
-  		Serial.print("Received UNexpected reply for key: ");
-  		Serial.println(req);
+			Serial.print(F("unex1: "));
+			Serial.println(req);
+			Serial.print(F("ex: "));
+			Serial.println(expectedReplyKey);
+  		// drop down
 		}
+	}
+	
+	// trigger callback?
+	if (triggerCallbackOnUnhandledJsonCommand(doc)) {
+		return true;
 	}
 	
 	return false;
 }
 //---------------------------------------------------------------------------
+
+
 
 
 
@@ -396,7 +431,7 @@ bool JrNet<T>::sendTestInfoRequest() {
 	++sentCount;
   if (debugLevel>1) {
   	Serial.print(sentCount);
-  	Serial.println("] sending cmd msg to friend.");
+  	Serial.println(F("] sendc."));
   }
    
   JrTypedefStaticJsonDocument doc;
@@ -414,7 +449,7 @@ bool JrNet<T>::sendTestFeedSaveRequest() {
 	++sentCount;
   if (debugLevel>1) {
   	Serial.print(sentCount);
-  	Serial.println("] sending fsave req to friend.");
+  	Serial.println(F("] sendf."));
   }
    
   JrTypedefStaticJsonDocument doc;
@@ -503,15 +538,22 @@ bool JrNet<T>::waitForReply(char* inExpectedReplyKey, char *strbuf, int timeoutM
 	unsigned long curtime;
 	
 	// set key we are expecting and clear result
+	//Serial.println("ATTN: Waiting for reply..");
 	strcpy(expectedReplyKey, inExpectedReplyKey);
-	lastReply = "";
+	strcpy(lastReply,"");
 	
 	while (true) {
 		// loop network
+		//Serial.println("Looping...");
 		loop();
-		if (lastReply!="") {
+			//Serial.print("LastReply2: ");
+  			//Serial.println(lastReply);
+		if (strcmp(lastReply,"")!=0) {
 			// we got a reply!
-			strcpy(strbuf, lastReply.c_str());
+			//Serial.println("ATTN: got expected reply: ");
+			//Serial.println(lastReply);
+			strcpy(strbuf, lastReply);
+			strcpy(expectedReplyKey, "");
 			return true;
 		}
 		curtime = millis();
@@ -519,7 +561,7 @@ bool JrNet<T>::waitForReply(char* inExpectedReplyKey, char *strbuf, int timeoutM
 			break;
 		}
 	}
-	
+
 	// failed to get reply
 	strcpy(expectedReplyKey, "");
 	return false;
@@ -531,6 +573,16 @@ bool JrNet<T>::waitForReply(char* inExpectedReplyKey, char *strbuf, int timeoutM
 
 
 
+//---------------------------------------------------------------------------
+template<class T>
+bool JrNet<T>::triggerCallbackOnUnhandledJsonCommand(JrTypedefStaticJsonDocument &doc) {
+	// process the command, return true on success
+	if (triggerfp) {
+		return triggerfp(doc);
+	}
+	return false;
+}
+//---------------------------------------------------------------------------
 
 
 

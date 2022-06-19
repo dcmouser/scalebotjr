@@ -31,11 +31,15 @@ void setupWorkflowAndScales() {
 
   // set lcd
   jrworkflow.setJrLcd(&jrlcd);
+
   
   // setup scales
   jrworkflow.setupScales(pinLoadcallSck, pinLoadcell1Dout, pinLoadcell2Dout, &gscaleSet);
   // callbacks
   jrworkflow.setEventCallbackFpT(eventCallback);
+
+  // rangefinder
+  jrworkflow.setupRangefinder(&jrRangeFinder);
 }
 //---------------------------------------------------------------------------
 
@@ -48,11 +52,11 @@ void setupWorkflowAndScales() {
 
 
 //---------------------------------------------------------------------------
-void loopScaleAndWorkflow() {
+void loopScaleAndWorkflow(bool flagUpdateDisplay) {
   // workflow
   jrworkflow.loopWorkflow();
   // workflow info display
-  jrworkflow.updateDisplays(false);
+  jrworkflow.updateDisplays(false, flagUpdateDisplay);
   }
 //---------------------------------------------------------------------------
 
@@ -135,7 +139,7 @@ void storeFinishedCoffeeDrink() {
     strcat(buf, "]");
   }
   //
-  Serial.println(buf);
+  //Serial.println(buf);
 
   // record the drink on our network
   jrnet.sendSimpleFeedSaveRequest(buf);

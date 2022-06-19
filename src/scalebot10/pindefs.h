@@ -25,6 +25,7 @@
 */
 
 #define buttonPinInterrupt 18
+
 #define buttonInterruptState HIGH // SEESAW_KEYPAD_EDGE_FALLING  // HIGH
 //---------------------------------------------------------------------------
 

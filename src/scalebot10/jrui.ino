@@ -21,8 +21,9 @@ bool jrWrappedNeoKeymap[neoKeypad_Rows*neoKeypad_Cols] = {0};
 
 
 
-
-
+//---------------------------------------------------------------------------
+float testWaterLevelVal = 0.0;
+//---------------------------------------------------------------------------
 
 
 //---------------------------------------------------------------------------
@@ -46,6 +47,22 @@ void loopButtonsAndKeypad() {
       }
 
     JrWorkflowModeEnum wfmode = jrworkflow.getWorkflowMode();
+
+    if (false && wfmode == JrWorkflowMode_None) {
+      // TEST
+      if (pos==JrEncoderRotaryDirectionLeft) {
+        // turn left/up
+        testWaterLevelVal-=0.3;
+        uiInteractionSignify(DefSoundTypeMenuMove);
+      } else if (pos==JrEncoderRotaryDirectionRight) {
+        // turn right/down
+        testWaterLevelVal+=0.3;
+        uiInteractionSignify(DefSoundTypeMenuMove);
+      }
+      jrworkflow.setWaterLevel(testWaterLevelVal);
+    }
+    
+    
     if (wfmode == JrWorkflowMode_All) {
       // in this mode user can rotate through recipes
       if (pos==JrEncoderRotaryDirectionLeft) {
@@ -295,6 +312,9 @@ void myCallbackNeoKeyPress(JrKeyCallbackType eventType, int keynum) {
       jrworkflow.setWorkflowModeEnable(false);
       uiInteractionSignify(DefSoundTypeMainFunc);
     }
+    jrworkflow.updateWaterLevelIfAppropriate();
+  } else if (keynum==neoKeyValEsc) {
+    jrworkflow.updateWaterLevelIfAppropriate();
   } else if (keynum == neoKeyValBackSpace) {
     handleUiBackButtonInContext();
   }

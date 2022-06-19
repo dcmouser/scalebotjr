@@ -37,6 +37,10 @@
 #include <jrLcdMatrix.h>
 //---------------------------------------------------------------------------
 
+//---------------------------------------------------------------------------
+#include <jrRangeFinder.h>
+//---------------------------------------------------------------------------
+
 
 //---------------------------------------------------------------------------
 enum JrWorkflowModeEnum {JrWorkflowMode_None=0, JrWorkflowMode_SelectCoffee, JrWorkflowMode_Beans, JrWorkflowMode_Espresso, JrWorkflowMode_All, JrWorkflowMode_Done };
@@ -93,6 +97,7 @@ class JrWorkflow {
 protected:
 	int currentRecipe = -1;
 	int currentRecipeStepIndex = -1;
+	bool isRecipeIndexDone = false;
 	float currentRecipeStepTargetWeight = 0.0;
 	float priorRecipeStepTargetWeight = 0.0;
 	char recipeLabel[20];
@@ -112,6 +117,15 @@ protected:
 	uint8_t userId;
 	uint8_t userLastCoffee[MaxUserMemoryCount] = {0};
 protected:
+	float waterLevel = 0.05;
+	float waterLevelLowThreshold = 0.10;
+	float waterLevelmin = 0.0;
+	float waterLevelmax = 1.0;
+	unsigned long waterLevelLastUpdateTime = 0;
+protected:
+	unsigned long lastWokeTime=0;
+	bool justWoke = true;
+protected:
 	char warningMsg[20];
 protected:
 	JrLcd* jrlcdp = NULL;
@@ -125,6 +139,8 @@ protected:
 	JrScale* iajscalep;
 	JrScale* prefscalep;
 protected:
+	JrRangeFinder* jrRangeFinderp = NULL;
+protected:
 	char headerTextLine[24];
 public:
 	// options; public for now
@@ -136,16 +152,16 @@ public:
 	bool optionShowTimerMs = true;
 	bool optionEnableAutoTimer = true;
 	bool optionShowWorkflowModeInstructions = true;
-	bool optionStartupTare = false;
+	int optionAutoZero = 0;
 	int optionStartingWorkflowMode = JrWorkflowMode_SelectCoffee;
-	bool optionCheckWarnings = false;
+	int optionCheckWarnings = 1;
 	int optionScaleMode = 0;
 	int optionSoftZero = 0;
-	float optionBeanContainerWeight = 100.0;
+	float optionBeanJarWeight = 100.0;
 public:
 	// not yet changeable in options
-	bool optionStartupCalibrationTweak = true;
-	bool optionResumeCalibrationTweak = true;
+	//bool optionStartupCalibrationTweak = true;
+	//bool optionResumeCalibrationTweak = true;
 	bool optionAutoAdvanceWorkflowFromBeans = true;
 protected:
 	bool wantScheduleCalibrationTweak=false;
@@ -174,6 +190,8 @@ protected:
 	float secondWeightPreviousValue = 0.0;
 	//
 	unsigned long startOfCurrentIncreaseSequenceMs = 0;
+	//
+	int waterCheckCycleCountdown = 0;
 protected:
 	float lastPositiveBeanWeight = 0.0;
 	float lastPositiveWeight = 0.0;
@@ -207,24 +225,42 @@ protected:
 	//const unsigned long wfStableWeightElapsedTimeSuperShort = 200;
 	//const unsigned long wfStableWeightElapsedTimeNorm = 1000;
 	// post 6/6/22
-	const unsigned long wfStableWeightElapsedTimeShort = 750;
+	const unsigned long wfStableWeightElapsedTimeShort = 950;
 	const unsigned long wfStableWeightElapsedTimeSuperShort = 400;
 	const unsigned long wfStableWeightElapsedTimeNorm = 1000;
 
 	const int wfConsecutiveRisingWeightWindowTarget = 3;		// see jrscale; the # of consectuive increases in window of size requiredRisingWindowTooCloseDurationMs to be considered a steady increase over time; multiply to get rising time length
 	const unsigned long wfStableTimeEndPourMs = 4000;				// how long weight shoudl stabilize to signify end of pour
-	const unsigned long wfWaitAfterTimerEndToAdvanceMode = 3000;
+	const unsigned long wfStableTimePostRealEndPourMs = 6000;
+	const unsigned long wfWaitAfterTimerEndToAdvanceMode = 18000;	// this long after timer of shot ends to we force FINISHED.. though it should stop sooner 
+	const unsigned long wfStableWeightElapsedTimeCupRemovedAtEnd = 10000;
 	const unsigned wfMaxWeightIncAfterEspressoToUpdateOnRecipe = 5; // as long as not more than this many grams have been added when we switch to a recipe, update espresso weight to this value, to account for dripping
 	const unsigned long wfCalStableWeightElapsedTime = 250;
 	float wfCalMaxWeightToConsiderZero = 3.0;
+	float wfCalMaxWeightToConsiderZeroContinuous = 2.0;
 	//
 	const float wfMinBeanWeightToAssumeInContainer = 3.0;
 	const float wfBeanWeightToAssumeInContainerMin = 8.0;
 	const float wfBeanWeightToAssumeInContainerMax = 30.0;
+	//
+	const float DefWeightDeltaThresholdMostWeightedScale = 5.0;
 protected:
 	// tracking update times
 	const float DefAvgUpdateMsSmoothFactor = 0.99;
 	const unsigned long DefMaxAvgUpdateToConsider = 1000;
+
+protected:
+	//const unsigned long DefWaterLevelUpdateFrequencySlow = 2000;
+	//const unsigned long DefWaterLevelUpdateFrequencyFast = 500;
+	// idea is to only check water level occasionally and then to average in a small window before delaying the next check
+	const unsigned long DefWaterLevelUpdateFrequencyNormal = 8000;
+	//const unsigned long DefWaterLevelUpdateFrequencyLowWater = 2000;
+	const unsigned long DefWaterLevelUpdateFrequencyLowWater = 1000;
+	const unsigned long DefWaterLevelUpdateFrequencyWorkflow = 8000;
+	const unsigned long DefWaterLevelUpdateFrequencyVeryFastWithinCycle = 50;
+	const unsigned long DefWaterCheckCyclesPerWindow = 20;
+protected:
+	const unsigned long DefJustWokeMs = 1500;
 public:
 	JrWorkflow();
 public:
@@ -238,11 +274,12 @@ public:
 	void setJrLcd(JrLcd* injrlcdp) {jrlcdp = injrlcdp;}
 	void setup7Segments(uint8_t addrA, uint8_t addrB);
 	void setupLcdMatrix(uint8_t addr);
+	void setupRangefinder(JrRangeFinder* injrRangeFinderp);
 
 public:
 	void begin();
-	void setOptions(int in_optionDebugLevel, bool in_optionRoundUp, int in_option7SegmentBrightness, int weightSmoothMode, int inoptionScaleMode, int inoptionSoftZero, int inoptionCalibrationTweakMethod);
-	void setOptions2(float inBeanContainerWeight, int in_optionStartingWorkflowMode, bool in_optionCheckWarnings);
+	void setOptions(int in_optionDebugLevel, bool in_optionRoundUp, int in_option7SegmentBrightness, int weightSmoothMode, int inoptionScaleMode, int inoptionSoftZero, int inoptionCalibrationTweakMethod, int in_optionAutoZero);
+	void setOptions2(float inoptionBeanJarWeight, int in_optionStartingWorkflowMode, int in_optionCheckWarnings);
 	void powerUp();
 	void powerDown();
 	void powerUpScale(JrScale *scalep);
@@ -254,6 +291,7 @@ public:
 	void scheduleCalibrationTweak(unsigned long delayMillis = 0);
 	void doScheduledCalibrationTweak();
 	void doSetCalibrationTweakForScale(JrScale *scalep);
+	void doContinuousCalibrationTweakForScaleIfStableSmall(JrScale *scalep);
 public:
 	void loopWorkflow();
 	void doLoopNonMultiScale(JrScale *scalep);
@@ -267,11 +305,11 @@ public:
 	void calcWorkflowDoneMessage(char *outbuf);
 	bool advanceWorkflowMode(bool manualHuman);
 	void rewindWorkflowMode();
-	void resumeSleepForceWorkflowOption(JrWorkflowStartModeEnum resumeMode, bool flagFirstStartup);
-	void firstStart(bool val, JrWorkflowStartModeEnum resumeMode);
+	void resumeFromSleepOrStart(JrWorkflowStartModeEnum resumeMode);
+	void firstStart(JrWorkflowStartModeEnum resumeMode);
 	bool workflowSafeToAdvance();
 public:
-	void updateDisplays(bool force);
+	void updateDisplays(bool force, bool flagUpdateControlScreen);
 	void updateRatioDisplay();
 	void updateTimerDisplay();
 	void updateTareDisplay(float tareval);
@@ -322,6 +360,7 @@ public:
 	void setPreferredScaleIdForWorkflow();
 	void setPreferredScaleId(int id) { prefscalep = getScaleById(id); preferredScaleChanges(); };
 	void preferredScaleChanges();
+	JrScale* getMostWeightedScalep();
 public:
 	void updateActiveScaleChoice();
 public:
@@ -344,14 +383,16 @@ public:
 	uint8_t getUsersLastCoffee();
 	void setUsersLastCoffee(uint8_t coffeeId, char* inCoffeeLabel, uint8_t ingrindSize);
 public:
-	void smartGuessBeanWeightInJarIfAppropriate();
+	bool smartGuessBeanWeightInJarIfAppropriate();
 	void fillFinishedCoffeeInfo(char* username, char* coffeeTypeStr, int &oucoffeeId, int &outgrindSize, float &beanWeight, float &espressoWeight, float &finalWeight);
 public:
 	void prepareForSleepEarly();
 	void prepareForSleepLate();
+protected:
 	void prepareForWake();
 public:
 	void updateMatrixImageForWorkflowMode();
+	JrLcdMatrix* getLcdMatrix() {return &lcdMatrix;};
 public:
 	void checkWarnings();
 	void setWarningMessage(const char *msg) {strcpy(warningMsg,msg);};
@@ -378,6 +419,16 @@ public:
 public:
 	unsigned long getAvgUpdateMs() {return (unsigned long) avgUpdateMs;};
 	bool goBackwardsStep();
+public:
+	void setWaterLevelLimits(float min, float max, float lowThreshold);
+	void setWaterLevel(float val) {waterLevel = val;};
+	void displayWaterLevelGraphic();
+	void updateWaterLevelOccasionally();
+	void updateWaterLevelIfAppropriate();
+	void updateWaterLevel();
+	void startWaterLevelCheckingCycle();
+public:
+	unsigned long wokeTime();
 };
 //---------------------------------------------------------------------------
 

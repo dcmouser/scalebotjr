@@ -15,14 +15,13 @@
 JrScale::JrScale() {
 	
 	// init tracking
-	unsigned long ms = millis();
-	timeOfLastSignificantWeightIncrease=ms;
-	timeOfLastSignificantWeightDecrease=ms;
+	resetLastChangeTimes();
 	//
 	// note this will be set my workflow based on mode, normally high except when watching for espresso which shakes the machine
 	setWeightChangeSensitivity(JrWeightChangeSensitivityMode_High);
 }
 //---------------------------------------------------------------------------
+
 
 
 
@@ -243,15 +242,15 @@ void JrScale::setInternalTare(float val) {
 	
 	if (val<DefMinimalTareToConvertToInternalAdditiveFix) {
 		// when a tare is this tiny, we assume its a scale 0 calibration fix
-		doSetCalibrationTweakForScaleFromRawWeight();
-		//
 		internalTare=0;
-		tareChangesUpdate();
+		doSetCalibrationTweakForScaleFromRawWeight();
+		// this will be called by above func
+		// tareChangesUpdate();
 		return;
 	}
 	
   internalTare = val;
-	tareChangesUpdate();
+  tareChangesUpdate();
 }
 
 
@@ -358,6 +357,9 @@ void JrScale::setWeightChangeSensitivity(JrWeightChangeSensitivityMode smode) {
 	} else if (smode == JrWeightChangeSensitivityMode_Low) {
 		significantWeightChangeForTimeTrackingUp = significantWeightChangeForTimeTrackingUp_Low;
 		significantWeightChangeForTimeTrackingDown = significantWeightChangeForTimeTrackingDown_Low;
+	} else if (smode == JrWeightChangeSensitivityMode_VeryHigh) {
+		significantWeightChangeForTimeTrackingUp = significantWeightChangeForTimeTrackingUp_VeryHigh;
+		significantWeightChangeForTimeTrackingDown = significantWeightChangeForTimeTrackingDown_VeryHigh;
 	}
 }
 //---------------------------------------------------------------------------
@@ -393,8 +395,11 @@ void JrScale::doSetCalibrationTweakForScaleFromRawWeight() {
 		// none
 		resetCalibrationTweaks();
 	}
+
+	// recompute untorn weight etc
+	tareChangesUpdate();
 	
-	if (true || optionDebugLevel>0) {
+	if (optionDebugLevel>0) {
 		Serial.print("ATTN: Additive tweak computed as: ");
 		Serial.println(calibrationTweakAdditive);
 		Serial.print("ATTN: Multiplicative tweak computed as: ");
@@ -582,8 +587,27 @@ void JrScale::computeTornUntornWeightFromRawWeightSmoothed() {
   // now scale it as per calibration
   untornWeight = untornWeight / calibrationFactor;
 
+  // compute untorn weight
+  untornUntweakedWeight = rawWeightSmoothed;
+  // subtract calibrated platform weight
+  untornUntweakedWeight -= calibratedPlatformRawWeight;
+  // now scale it as per calibration
+  untornUntweakedWeight = untornUntweakedWeight / calibrationFactor;
+
   // tornweight
   tornWeight = untornWeight - internalTare;
+}
+//---------------------------------------------------------------------------
+
+
+
+
+
+//---------------------------------------------------------------------------
+void JrScale::resetLastChangeTimes() {
+	unsigned long ms = millis();
+	timeOfLastSignificantWeightIncrease=ms;
+	timeOfLastSignificantWeightDecrease=ms;
 }
 //---------------------------------------------------------------------------
 

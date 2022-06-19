@@ -32,6 +32,8 @@ public:
   JrLcdMatrix();
 public:
 	void setup(int in_i2cAddress, uint8_t rotation);
+protected:
+	void setupFont() ;
 public:
 	void setActive(bool val);
 	void setBrightness(int val);
@@ -41,7 +43,12 @@ public:
 	void printLetter(char c);
 	void drawBitmapSmiley();
 	void drawBitmapFrown();
+	void drawBitmapWifiGood();
+	void drawBitmapWifiBad();
+	void drawLevel(float val, float min, float max, int displayMode, bool flagWarn);
 	void drawBitmap(const uint8_t PROGMEM* bmpp);
+public:
+	int jrRescaleRange(float min, float max, float val, int outMin, int outMax);
 };
 //---------------------------------------------------------------------------
 

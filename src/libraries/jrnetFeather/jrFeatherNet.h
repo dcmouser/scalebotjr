@@ -75,7 +75,7 @@ public:
 public:
 	int status = WL_IDLE_STATUS;
 public:
-	JrFeatherNet(T* inSerialp, String inClientName, int inClientId, int indebugLevel) : JrNet<T>(inSerialp, inClientName, inClientId, indebugLevel) {;};
+	JrFeatherNet(T* inSerialp, String inClientName, int inClientId, String inVersionIdStr, int indebugLevel) : JrNet<T>(inSerialp, inClientName, inClientId, inVersionIdStr, indebugLevel) {;};
 	~JrFeatherNet() {;};
 public:
 	virtual void setup(bool waitForSerial=false);
@@ -89,7 +89,7 @@ public:
 public:
 	virtual void loopBackground();
 public:
-	virtual bool processJsonCommand(const String &str, JrTypedefStaticJsonDocument &doc);
+	virtual bool processJsonCommand(JrTypedefStaticJsonDocument &doc);
 public:
 	bool doSaveFeedItem(JrTypedefStaticJsonDocument &doc);
 public:
@@ -271,7 +271,7 @@ bool JrFeatherNet<T>::connectIo() {
 
   // we are connected
   if (this->debugLevel>0) {
-	  Serial.println();
+	  Serial.println("Status:");
 	  Serial.println(iop->statusText());
 	}
   
@@ -352,7 +352,7 @@ void JrFeatherNet<T>::loopBackground() {
 
 //---------------------------------------------------------------------------
 template<class T>
-bool JrFeatherNet<T>::processJsonCommand(const String &str, JrTypedefStaticJsonDocument &doc) {
+bool JrFeatherNet<T>::processJsonCommand(JrTypedefStaticJsonDocument &doc) {
 	//
 	// test
 	/*
@@ -389,9 +389,11 @@ bool JrFeatherNet<T>::processJsonCommand(const String &str, JrTypedefStaticJsonD
 		//rdoc["f"] = this->getClientId();
   	//rdoc["ri"] = doc["id"];
   	rdoc["req"] = "reqstatus";
-  	char statusStr[80];
+  	char statusStr[40];
   	getNetStatus(statusStr);
-  	rdoc["m"] = statusStr;
+	char msg[80];
+	sprintf(msg,"%s [v%s]\n",statusStr,this->getVersionIdStrAsCharp());
+  	rdoc["m"] = msg;
 		// send it
 		this->sendJsonDocument(rdoc);
 		return true;
@@ -424,7 +426,7 @@ bool JrFeatherNet<T>::doSaveFeedItem(JrTypedefStaticJsonDocument &doc) {
 	char buf[80];
 	strcpy(buf, (const char*)doc["m"]);
 	// save it to feed
-	(this->feedp)->jrsaveRaw(buf);
+	bool bretv = (this->feedp)->jrsaveRaw(buf);
 
 	// some feedback debug info
   if (this->debugLevel>1) {
@@ -432,9 +434,13 @@ bool JrFeatherNet<T>::doSaveFeedItem(JrTypedefStaticJsonDocument &doc) {
 		Serial.println(buf);
 	}
 	// send to main app because we lose serial when we go to sleep
-	this->sendSimpleCommand("dbg","sent feed item");
+	if (bretv) {
+		this->sendSimpleCommand("feedresult","ok: sent feed item");
+	} else {
+		this->sendSimpleCommand("feedresult","err: failed to send feed item");		
+	}
 
-	return true;
+	return bretv;
 }
 //---------------------------------------------------------------------------
 
