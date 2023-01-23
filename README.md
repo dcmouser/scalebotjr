@@ -2,6 +2,8 @@
 Arduino based dual-scale espresso scale
 See https://www.donationcoder.com/forum/index.php?topic=52308
 See https://www.youtube.com/watch?v=byn376XC340
+See https://www.youtube.com/watch?v=Zuxb_phUh-M
+See https://www.youtube.com/watch?v=M2LkLitxuP4
 
 Showing off my latest electronics project, JrScaleBot, a custom made espresso scale system that uses two separate scales (one embedded into the drip tray of a Breville Bambino), and performs automatic shot timing, taring, ratio calculations, and recipe guidance.
 
