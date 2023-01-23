@@ -380,17 +380,47 @@ void JrScale::doSetCalibrationTweakForScaleFromRawWeight() {
 	// it will account for very small drifts at startup maybe temp differences
 	// though note that this is an additive tweak, one could ALSO make an assumption about a multiplicative adjustment (temp related?) 
 	
-	float rawWeightToMakeZero = getRawWeightSmoothed();
+	doSetCalibrationTweakForCorrectedWeight(0.0);
+}
+
+
+void JrScale::doSetCalibrationTweakForCorrectedWeight(float targetWeightGrams) {
+	float rawWeight = getRawWeightSmoothed();
+	
+	// new code to handle not just tweak calibration to a 0 point but also to match another scale measurement
+	// targetWeightGrams will be 0 on startup, but higher when we want to sync scales
+	float targetWeightRaw = targetWeightGrams * calibrationFactor;
+	float targetMeasuredRawWeight = (getCalibratedPlatformRawWeight()+targetWeightRaw);
 	
 	// additive
 	if (optionCalibrationTweakMethod == JrCalibrationTweakMethod_Additive) {
-		float calAdditiveTweak = getCalibratedPlatformRawWeight() - rawWeightToMakeZero;
+		float calAdditiveTweak = targetMeasuredRawWeight - rawWeight;
 		setCalibrationTweakAdditive(calAdditiveTweak);
 		setCalibrationTweakMultiplicative(1.0);
-	} else if (optionCalibrationTweakMethod == JrCalibrationTweakMethod_Multiplicative && abs(rawWeightToMakeZero)>0.001) {
-		float calMultiplicativeTweak = getCalibratedPlatformRawWeight() / rawWeightToMakeZero;
+		setCalibrationTweakMultiplicativePost(1.0);
+	} else if (optionCalibrationTweakMethod == JrCalibrationTweakMethod_Multiplicative && abs(rawWeight)>0.001) {
+		float calMultiplicativeTweak = targetMeasuredRawWeight / rawWeight;
 		setCalibrationTweakAdditive(0.0);
 		setCalibrationTweakMultiplicative(calMultiplicativeTweak);
+		setCalibrationTweakMultiplicativePost(1.0);	
+	} else if (optionCalibrationTweakMethod == JrCalibrationTweakMethod_AddEarly) {
+		// this is like additivie
+		// first recompute old raw measured scaled value for some heavy weight (at this high value the calibrated tweak will have no effect)
+		float optionHeavyWeight = 100.0;
+		float oldHeavyWeightRaw = (optionHeavyWeight * calibrationFactor) + targetMeasuredRawWeight;
+		// additive tweak to bring 0 weight to 0
+		float calAdditiveTweak = targetMeasuredRawWeight - rawWeight;
+		setCalibrationTweakAdditive(calAdditiveTweak);
+		// but now lets find multiplicative weight to bring heavy weight unchanged
+		float oldHeavyWeightMapsTo = (oldHeavyWeightRaw - targetMeasuredRawWeight + calAdditiveTweak) / calibrationFactor;
+		if (abs(oldHeavyWeightMapsTo)>0.0010) {
+			float calMulPost = optionHeavyWeight / oldHeavyWeightMapsTo;
+			setCalibrationTweakMultiplicativePost(calMulPost);	
+		} else {
+			setCalibrationTweakMultiplicativePost(1.0);
+		}
+		//
+		setCalibrationTweakMultiplicative(1.0);
 	} else {
 		// none
 		resetCalibrationTweaks();
@@ -405,7 +435,7 @@ void JrScale::doSetCalibrationTweakForScaleFromRawWeight() {
 		Serial.print("ATTN: Multiplicative tweak computed as: ");
 		Serial.print(getCalibrationTweakMultiplicativeForDisplay());
 		Serial.println(" from raw weight of ");
-		Serial.print(rawWeightToMakeZero);
+		Serial.print(rawWeight);
 		Serial.print(" and stored platform weight of ");
 		Serial.println(getCalibratedPlatformRawWeight());
 	}
@@ -586,6 +616,8 @@ void JrScale::computeTornUntornWeightFromRawWeightSmoothed() {
   untornWeight += calibrationTweakAdditive;
   // now scale it as per calibration
   untornWeight = untornWeight / calibrationFactor;
+  //
+  untornWeight *= calibrationTweakMultiplicativePost;
 
   // compute untorn weight
   untornUntweakedWeight = rawWeightSmoothed;

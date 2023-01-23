@@ -75,13 +75,23 @@ void EasyBuzzerClass::singleBeep(unsigned int frequency, unsigned int duration, 
 /* Stop beeping. */
 void EasyBuzzerClass::stopBeep()
 {
+
+// 1/21/23 test from https://github.com/evert-arias/EasyBuzzer/pull/4/commits/8ce8aaa66921d32433f079acda1932b7ea3ee03c	
+mStartTime = 0;	
+	
 #if defined ESP32
 	ledcDetachPin(mPin);
 	pinMode(mPin, INPUT);
 #else
 	noTone(mPin);
 #endif
+
+// 1/21/23 test from https://github.com/evert-arias/EasyBuzzer/pull/4/commits/8ce8aaa66921d32433f079acda1932b7ea3ee03c	
+	//pinMode(mPin, INPUT);
 }
+
+
+
 /* Set the pin where the buzzer is connected. */
 void EasyBuzzerClass::setPin(unsigned int pin)
 {

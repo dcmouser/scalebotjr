@@ -27,7 +27,6 @@ bool readStoredEepromData() {
   EEPROM.get(DefJreAddressUserDataStart + 8, optionCalibrationTweakMethod);
   
   
-  
   //Serial.print("ATTN: read beep mode: ");
   //Serial.println(optionBeepMode);
 
@@ -50,6 +49,8 @@ bool readStoredEepromData() {
 
   EEPROM.get(DefJreAddressUserDataStart + 60, optionCalibrationWeight);
   EEPROM.get(DefJreAddressUserDataStart + 64, optionBeanJarWeight);
+  EEPROM.get(DefJreAddressUserDataStart + 68, optionSyncPouredWeights);
+  EEPROM.get(DefJreAddressUserDataStart + 70, optionBlankSleep);
 
   // workflow reads its settings
   jrworkflow.readStoredEepromData(DefJreAddressUserDataStart+100);
@@ -95,6 +96,8 @@ bool writeStoredEepromData() {
 
   EEPROM.put(DefJreAddressUserDataStart + 60, optionCalibrationWeight);
   EEPROM.put(DefJreAddressUserDataStart + 64, optionBeanJarWeight);
+  EEPROM.put(DefJreAddressUserDataStart + 68, optionSyncPouredWeights);
+  EEPROM.put(DefJreAddressUserDataStart + 70, optionBlankSleep);  
   
   // workflow saves its settings
   jrworkflow.writeStoredEepromData(DefJreAddressUserDataStart+100);

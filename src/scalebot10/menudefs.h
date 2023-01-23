@@ -46,6 +46,8 @@ extern void mFunc_goToRootMenu(uint8_t param);
 //
 extern void mDynParamWfStartsCoffeeSelect(uint8_t line);
 extern void mDynParamOptionCheckWarnings(uint8_t line);
+extern void mDynParamOptionBlankOnSleep(uint8_t line);
+extern void mDynParamOptionSyncPouredWeights(uint8_t line);
 //---------------------------------------------------------------------------
 
 
@@ -169,12 +171,14 @@ extern void mDynParamOptionCheckWarnings(uint8_t line);
     LCDML_addAdvanced (49 , LCDML_0_2       , 16  , NULL,          ""                  , mDynParamSoftZero,                0,   _LCDML_TYPE_dynParam);
     LCDML_addAdvanced (50 , LCDML_0_2       , 17  , NULL,          ""                  , mDynParamWfStartsCoffeeSelect,                0,   _LCDML_TYPE_dynParam);
     LCDML_addAdvanced (51 , LCDML_0_2       , 18  , NULL,          ""                  , mDynParamOptionCheckWarnings,                0,   _LCDML_TYPE_dynParam);    
-    
-    LCDML_add         (52 , LCDML_0_2       , 19  , "Reboot now"   , mFuncRebootNow);
-    LCDML_add         (53 , LCDML_0_2       , 20  , "Sleep now"   , mFuncSleepNow);
-    LCDML_add         (54 , LCDML_0_2       , 21  , "Back"         , mFunc_back);
+    LCDML_addAdvanced (52 , LCDML_0_2       , 19  , NULL,          ""                  , mDynParamOptionSyncPouredWeights,                0,   _LCDML_TYPE_dynParam);    
+    LCDML_addAdvanced (53 , LCDML_0_2       , 20  , NULL,          ""                  , mDynParamOptionBlankOnSleep,                0,   _LCDML_TYPE_dynParam);    
+        
+    LCDML_add         (54 , LCDML_0_2       , 21  , "Reboot now"   , mFuncRebootNow);
+    LCDML_add         (55 , LCDML_0_2       , 22  , "Sleep now"   , mFuncSleepNow);
+    LCDML_add         (56 , LCDML_0_2       , 23  , "Back"         , mFunc_back);
       
-  LCDML_add         (55, LCDML_0         , 3  , "Exit menu"       , myMenuMainExit);
+  LCDML_add         (57, LCDML_0         , 3  , "Exit menu"       , myMenuMainExit);
 
 
 // ATTN: Getting this next value wrong _LCDML_DISP_cnt will cause a lot of macro compilation errors
@@ -183,7 +187,7 @@ extern void mDynParamOptionCheckWarnings(uint8_t line);
   // menu element count - last element id
   // this value must be the same as the last menu element
 
-  #define _LCDML_DISP_cnt    55
+  #define _LCDML_DISP_cnt    57
 //---------------------------------------------------------------------------
 
 

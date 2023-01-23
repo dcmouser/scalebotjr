@@ -1,8 +1,8 @@
 //---------------------------------------------------------------------------
 // app stuff for about box and info
 #define DefAppLabelStr "ScaleBot Jr"
-#define DefAppVersionStr "3.49"
-#define DefAppDateStr "6/17/22"
+#define DefAppVersionStr "5.1"
+#define DefAppDateStr "1/21/23"
 #define DefAppAuthorStr "J. Reichler"
 #define DefAppEmailStr "mouser@donationcoder.com"
 

@@ -1,40 +1,12 @@
-#include "jrlcd.h"
+#include "jrlcdb.h"
 
 
 
 
 
 
-//---------------------------------------------------------------------------
-JrLcd::JrLcd(LiquidCrystal_I2C *inlcdp) {
-	setupLcd(inlcdp);
-}
-//---------------------------------------------------------------------------
 
 
-
-//---------------------------------------------------------------------------
-void JrLcd::setupLcd(LiquidCrystal_I2C *inlcdp) {
-	lcdp = inlcdp;
-}
-//---------------------------------------------------------------------------
-
-
-
-
-//---------------------------------------------------------------------------
-void JrLcd::begin(int cols, int rows) {
-	  //initialize the lcd
-  #ifdef LCD_LIB_NEWCRYSTAL
-    // new crystal code
-    lcdp->begin(cols, rows);
-    lcdp->backlight();
-  #else
-    // dfrobot code
-    lcdp->init();
-  #endif
-}
-//---------------------------------------------------------------------------
 
 
 
@@ -83,6 +55,7 @@ void JrLcd::updateBrightness() {
 
 
 
+
 //---------------------------------------------------------------------------
 void JrLcd::createScrollbarCharsForMenu() {
   const uint8_t scroll_bar[7][8] = {
@@ -95,16 +68,22 @@ void JrLcd::createScrollbarCharsForMenu() {
     {B10001, B10001, B10001, B10001, B10001, B10001, B11111, B11111}, // scroll state 4
   }; 
     
-  lcdp->createChar(0, (uint8_t*)scroll_bar[0]);
-  lcdp->createChar(1, (uint8_t*)scroll_bar[1]);
-  lcdp->createChar(2, (uint8_t*)scroll_bar[2]);
-  lcdp->createChar(3, (uint8_t*)scroll_bar[3]);
-  lcdp->createChar(4, (uint8_t*)scroll_bar[4]);
-  lcdp->createChar(5, (uint8_t*)scroll_bar[5]);
-  lcdp->createChar(6, (uint8_t*)scroll_bar[6]);
+  doCreateChar(0, (uint8_t*)scroll_bar[0]);
+  doCreateChar(1, (uint8_t*)scroll_bar[1]);
+  doCreateChar(2, (uint8_t*)scroll_bar[2]);
+  doCreateChar(3, (uint8_t*)scroll_bar[3]);
+  doCreateChar(4, (uint8_t*)scroll_bar[4]);
+  doCreateChar(5, (uint8_t*)scroll_bar[5]);
+  doCreateChar(6, (uint8_t*)scroll_bar[6]);
 
   // needed for https://github.com/arduino-libraries/LiquidCrystal/issues/6?
-  lcdp->setCursor(0, 0);
-  lcdp->clear();      
+  setCursor(0, 0);
+  clear();      
 }
 //---------------------------------------------------------------------------
+
+
+
+
+
+

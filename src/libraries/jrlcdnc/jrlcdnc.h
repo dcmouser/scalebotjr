@@ -1,5 +1,5 @@
-#ifndef jrlcdH
-#define jrlcdH
+#ifndef jrlcdNcH
+#define jrlcdNcH
 
 
 //---------------------------------------------------------------------------
@@ -16,9 +16,7 @@
 
 
 //---------------------------------------------------------------------------
-#include <Adafruit_GFX.h>
-#include <Adafruit_LEDBackpack.h>
-//
+#include "jrlcdb.h"
 #include <LiquidCrystal_I2C.h>
 //---------------------------------------------------------------------------
 
@@ -26,33 +24,26 @@
 
 
 //---------------------------------------------------------------------------
-class JrLcd {
+class JrLcdNc : public JrLcd {
 public:
 	LiquidCrystal_I2C *lcdp = NULL;
-	uint8_t brightness = 1;
-	bool isOff = false;
-	bool active = true;
 public:
-  JrLcd(LiquidCrystal_I2C *inlcdp=NULL);
-public:
-	void setupLcd(LiquidCrystal_I2C *inlcdp);
-	void begin(int cols, int rows);
-public:
-	void setActive(bool val);
-	void setBrightness(int val);
-	void updateBrightness();
-public:
-	void createScrollbarCharsForMenu();
+  JrLcdNc(LiquidCrystal_I2C *inlcdp=NULL);
 public:
 	// wrapping normal lcd functions
-	void clear() {lcdp->clear();};
-	void setCursor(uint8_t col, uint8_t row) {lcdp->setCursor(col, row);};
-	void backlight() {lcdp->backlight();};
-	void noBacklight() {lcdp->noBacklight();}
-	void print(const char c) {lcdp->print(c);};
-	void print(const char* charp) {lcdp->print(charp);};
-	void print(const __FlashStringHelper *fcharp) {lcdp->print(fcharp);};
-	void write(uint8_t val) {lcdp->write(val);};
+	virtual void setupLcd(LiquidCrystal_I2C *inlcdp);
+	virtual bool begin(int cols, int rows);
+public:
+	virtual void clear() {lcdp->clear();};
+	virtual void setCursor(uint8_t col, uint8_t row) {lcdp->setCursor(col, row);};
+	virtual void backlightOn() {lcdp->backlight();};
+	virtual void backlightOff() {lcdp->noBacklight();}
+	virtual void print(long val) {lcdp->print(val);};
+	virtual void print(const char c) {lcdp->print(c);};
+	virtual void print(const char* charp) {lcdp->print(charp);};
+	virtual void print(const __FlashStringHelper *fcharp) {lcdp->print(fcharp);};
+	virtual void write(uint8_t val) {lcdp->write(val);};
+	virtual void doCreateChar(int index, uint8_t* rowdatap) {lcdp->createChar(index, rowdatap);};
 };
 //---------------------------------------------------------------------------
 

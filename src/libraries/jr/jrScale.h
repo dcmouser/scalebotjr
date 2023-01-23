@@ -29,7 +29,7 @@ enum JrWeightChangeSensitivityMode {JrWeightChangeSensitivityMode_VeryHigh, JrWe
 //enum JrWeightSmoothingMode { JrWeightSmoothingModeInstant=0, JrWeightSmoothingModeSlow, JrWeightSmoothingModeAdaptive, JrWeightSmoothingModeNoiseReject1, JrWeightSmoothingModeWindowedOld, JrWeightSmoothingModeWindowed, JrWeightSmoothingModeWindowMost, JrWeightSmoothingModeGap};
 enum JrWeightSmoothingMode { JrWeightSmoothingModeInstant=0, JrWeightSmoothingModeSlow, JrWeightSmoothingModeGap};
 
-enum JrCalibrationTweakMethod {JrCalibrationTweakMethod_None, JrCalibrationTweakMethod_Additive, JrCalibrationTweakMethod_Multiplicative};
+enum JrCalibrationTweakMethod {JrCalibrationTweakMethod_None, JrCalibrationTweakMethod_Additive, JrCalibrationTweakMethod_Multiplicative, JrCalibrationTweakMethod_AddEarly};
 //---------------------------------------------------------------------------
 
 
@@ -82,6 +82,7 @@ public:
 	float calibratedPlatformRawWeight = 0;
 	float calibrationTweakAdditive = 0.0;
 	float calibrationTweakMultiplicative = 1.0;
+	float calibrationTweakMultiplicativePost = 1.0;
 public:
 	// options; public for now
 	bool optionHideSmallChanges = false;
@@ -148,9 +149,11 @@ public:
 	void setCalibrationTweakAdditive(float ina) {	calibrationTweakAdditive = ina;};
 	float getCalibrationTweakAdditive() { return calibrationTweakAdditive;};
 	void setCalibrationTweakMultiplicative(float ina) {	calibrationTweakMultiplicative = ina;};
+	void setCalibrationTweakMultiplicativePost(float ina) {	calibrationTweakMultiplicativePost = ina;};
 	float getCalibrationTweakMultiplicative() { return calibrationTweakMultiplicative;};
 	float getCalibrationTweakMultiplicativeForDisplay() { return (calibrationTweakMultiplicative-1.0)*10000.0;};
-	void resetCalibrationTweaks() {calibrationTweakAdditive=0.0; calibrationTweakMultiplicative=1.0; };
+	float getCalibrationTweakMultiplicativePostForDisplay() { return (calibrationTweakMultiplicativePost-1.0)*10000.0;};
+	void resetCalibrationTweaks() {calibrationTweakAdditive=0.0; calibrationTweakMultiplicative=1.0; calibrationTweakMultiplicativePost=1.0;};
 public:
 	void setWeightChangeSensitivity(JrWeightChangeSensitivityMode smode);
 	void setWeightSmoothMode(int mode) {weightSmoothMode = mode;};
@@ -163,6 +166,7 @@ public:
 	float getDisplayWeight() { return displayWeight; };
 	float getInternalTare() { return internalTare; };
 	void doSetCalibrationTweakForScaleFromRawWeight();
+	void doSetCalibrationTweakForCorrectedWeight(float targetWeightGrams);
 public:
 	bool get_enabled() {return enabled;}
 public:

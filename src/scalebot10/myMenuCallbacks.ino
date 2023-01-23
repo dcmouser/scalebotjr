@@ -100,8 +100,17 @@ void mDynParamOptionCheckWarnings(uint8_t line) {
   optionCheckWarnings = handleDynamicParamList(F("Chk. Wat."), line, optionCheckWarnings, DefParamOptionsListCheckWarnings);
   pushOptionsToObjects2();
 }
-//---------------------------------------------------------------------------
 
+void mDynParamOptionSyncPouredWeights(uint8_t line) {
+  optionSyncPouredWeights = handleDynamicParamList(F("Sync Wght."), line, optionSyncPouredWeights, DefParamOptionsListYesNo);
+  pushOptionsToObjects2();
+}
+
+void mDynParamOptionBlankOnSleep(uint8_t line) {
+  optionBlankSleep = handleDynamicParamList(F("Blank Sleep."), line, optionBlankSleep, DefParamOptionsListYesNo);
+  pushOptionsToObjects2();
+}
+//---------------------------------------------------------------------------
 
 
 
@@ -205,12 +214,15 @@ void mDynPageAbout(uint8_t param) {
 void mDynPageScaleDataGeneric(uint8_t param, JrScale* scalep, char* scaleid) {
   char strbuf[120];
   char f1[8],f2[8],f2b[8],f3[8],f4[8];
-  
+
+
+
+  float cfactor = scalep->getCalibrationFactor();
   jrFloatToStr(f1, scalep->getInternalTare(), 1, 1);
-  jrFloatToStr(f2, scalep->getCalibrationTweakAdditive(), 1, 1);
+  jrFloatToStr(f2, scalep->getCalibrationTweakAdditive() / cfactor, 1, 2);
   jrFloatToStr(f2b, scalep->getCalibrationTweakMultiplicativeForDisplay(), 1, 2);
-  jrFloatToStr(f3, scalep->getCalibratedPlatformRawWeight() /1000.0, 1, 1);
-  jrFloatToStr(f4, scalep->getCalibrationFactor() /100.0, 1, 1);
+  jrFloatToStr(f3, scalep->getCalibratedPlatformRawWeight() / cfactor, 1, 1);
+  jrFloatToStr(f4, cfactor /100.0, 1, 1);
   sprintf(strbuf,"%s:\nT: %s\nA:%s|M:%s\nP:%s | C:%s", scaleid, f1, f2, f2b, f3, f4);
   handleDynamicPage(param, strbuf);
 }

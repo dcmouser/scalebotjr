@@ -124,6 +124,11 @@ void jrTurnOffLed() {
 //---------------------------------------------------------------------------
 
 
+//---------------------------------------------------------------------------
+void finishedBuzzerBeep() {
+  EasyBuzzer.stopBeep();
+}
+//---------------------------------------------------------------------------
 
 
 
@@ -142,24 +147,24 @@ void jrPlaySound(int beepType, bool flagWaitForCompletion) {
   EasyBuzzer.stopBeep();
   if (beepType==DefSoundTypeMenuMove) {
     if (optionBeepMode>=3) {
-      EasyBuzzer.singleBeep(100, 20);
+      EasyBuzzer.singleBeep(100, 20, finishedBuzzerBeep);
     }
   }  else if (beepType==DefSoundTypeMenuSelect) {
     if (optionBeepMode>=2) {
-      EasyBuzzer.singleBeep(200, 50);
+      EasyBuzzer.singleBeep(200, 50, finishedBuzzerBeep);
     }
   } else if (beepType==DefSoundTypeSleep) {
-    EasyBuzzer.singleBeep(300, 80);
+    EasyBuzzer.singleBeep(300, 80, finishedBuzzerBeep);
   } else if (beepType==DefSoundTypeWorkflow) {
-    EasyBuzzer.singleBeep(150, 70);
+    EasyBuzzer.singleBeep(150, 70, finishedBuzzerBeep);
   } else if (beepType==DefSoundTypeExit) {
-    EasyBuzzer.singleBeep(200, 80);
+    EasyBuzzer.singleBeep(200, 80, finishedBuzzerBeep);
   } else if (beepType==DefSoundTypeDone) {
-    EasyBuzzer.singleBeep(85, 100);
+    EasyBuzzer.singleBeep(85, 100, finishedBuzzerBeep);
   } else if (beepType==DefSoundTypeError) {
-    EasyBuzzer.singleBeep(600, 80);
+    EasyBuzzer.singleBeep(600, 80, finishedBuzzerBeep);
   } else {
-    EasyBuzzer.singleBeep(400, 80);
+    EasyBuzzer.singleBeep(400, 80, finishedBuzzerBeep);
   }
 
   if (flagWaitForCompletion) {

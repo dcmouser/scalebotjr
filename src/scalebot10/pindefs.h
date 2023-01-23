@@ -105,7 +105,12 @@ const int pinRotaryButton = 9;
 
 //---------------------------------------------------------------------------
 // 20x4 lcd
-#define pinLcd 0x27
+//#define pinLcd 0x27
+//#define pinLcdOld 0x27
+//#define LCD_OLD_SUNFOUNDER
+//
+#define pinLcdNew 0x73
+#define LCD_NEW_ADAFRUIT
 //---------------------------------------------------------------------------
 
 

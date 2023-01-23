@@ -96,7 +96,7 @@ void pushOptionsToObjects2() {
   if (!optionCoffeeSelect) {
     optionStartingWorkflowMode=JrWorkflowMode_Beans;
   }
-  jrworkflow.setOptions2(optionBeanJarWeight, optionStartingWorkflowMode, optionCheckWarnings);
+  jrworkflow.setOptions2(optionBeanJarWeight, optionStartingWorkflowMode, optionCheckWarnings, optionSyncPouredWeights);
 }
 //---------------------------------------------------------------------------
 

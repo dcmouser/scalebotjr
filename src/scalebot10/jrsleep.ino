@@ -45,7 +45,15 @@ void sendDeviceToSleep() {
   jrworkflow.powerDown();
 
   //lcd.setCursor ( 0, 3 );            // go to the fourth row
-  jrlcd.noBacklight(); // turn off backlight
+  jrlcd.backlightOff(); // turn off backlight
+
+  // clear screen?
+  if (optionBlankSleep) {
+    // sleep for a little bit to give time for screen to show
+    delay(500);
+    // clear screen
+    jrlcd.clear();
+  }
 
   // lcds off, etc.
   jrworkflow.prepareForSleepLate();
@@ -91,7 +99,7 @@ void wakeupDevice() {
   showSleepOnScreen(true);
 
   // lcd
-  jrlcd.backlight();  //open the backlight 
+  jrlcd.backlightOn();  //open the backlight 
 
   // sound before manually going to sleep
   jrPlaySound(DefSoundTypeMainFunc, true);
@@ -249,6 +257,7 @@ void setNextSleepTimeOnWakeup(unsigned long multiplier) {
 void showSleepOnScreen(bool isWaking) {
   jrlcd.clear();
   jrlcd.setCursor ( 0, 0 );            // go to the top left corner
+ 
   char title[24];
   sprintf_P(title,PSTR("  %S v%S"), F(DefAppLabelStr), F(DefAppVersionStr));
   jrlcd.print(title);

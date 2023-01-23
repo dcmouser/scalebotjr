@@ -123,16 +123,18 @@ void storeFinishedCoffeeDrink() {
   int coffeeId;
   int grindSize;
   float beanWeight, espressoWeight, finalWeight;
+  unsigned long shotTime;
   
-  jrworkflow.fillFinishedCoffeeInfo(username, coffeeTypeStr, coffeeId, grindSize, beanWeight, espressoWeight, finalWeight);
+  jrworkflow.fillFinishedCoffeeInfo(username, coffeeTypeStr, coffeeId, grindSize, beanWeight, espressoWeight, finalWeight, shotTime);
   
-  char beanWeightfs[12], espressoWeightfs[12], finalWeightfs[12];
-  jrFloatToStr(beanWeightfs, beanWeight, 3,2);
-  jrFloatToStr(espressoWeightfs, espressoWeight, 3,2);
-  jrFloatToStr(finalWeightfs, finalWeight, 3,2);
-
+  char beanWeightfs[12], espressoWeightfs[12], finalWeightfs[12], timefs[12];
+  jrFloatToStr(beanWeightfs, beanWeight, 3,1);
+  jrFloatToStr(espressoWeightfs, espressoWeight, 3,1);
+  jrFloatToStr(finalWeightfs, finalWeight, 3,1);
+  jrFloatToStr(timefs, (float)shotTime/1000.0, 3,1);
+  
   char buf[100];
-  sprintf(buf, "Coffee made for %s: %s (%d grind): %s/%s/%s",username, coffeeTypeStr, grindSize, beanWeightfs, espressoWeightfs, finalWeightfs);
+  sprintf(buf, "Coffee made for %s: %s (%d grind): %s/%s/%s in %ds",username, coffeeTypeStr, grindSize, beanWeightfs, espressoWeightfs, finalWeightfs, (int)(shotTime/1000));
   if (strcmp(jrworkflow.get_recipeLabel(),"")!=0) {
     strcat(buf," [");
     strcat(buf, jrworkflow.get_recipeLabel());

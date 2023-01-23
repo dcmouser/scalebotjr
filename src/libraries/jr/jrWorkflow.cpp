@@ -52,9 +52,6 @@ const char* recipes[] = {
 
 
 
-
-
-
 //---------------------------------------------------------------------------
 JrWorkflow::JrWorkflow() {
 	// constructor
@@ -217,10 +214,11 @@ void JrWorkflow::setOptions(int in_optionDebugLevel, bool in_optionRoundUp, int 
 	lcdMatrix.setBrightness(in_option7SegmentBrightness);
 }
 
-void JrWorkflow::setOptions2(float inoptionBeanJarWeight, int in_optionStartingWorkflowMode, int in_optionCheckWarnings) {
+void JrWorkflow::setOptions2(float inoptionBeanJarWeight, int in_optionStartingWorkflowMode, int in_optionCheckWarnings, int in_optionWeightSync) {
 	optionBeanJarWeight = inoptionBeanJarWeight;
 	optionStartingWorkflowMode = in_optionStartingWorkflowMode;
 	optionCheckWarnings = in_optionCheckWarnings;
+	optionWeightSync = in_optionWeightSync;
 }
 //---------------------------------------------------------------------------
 
@@ -327,7 +325,7 @@ void JrWorkflow::loopWorkflow() {
   }
   if (scheduledCalibrationTweakMillis> 0 && ms > scheduledCalibrationTweakMillis) {
     doScheduledCalibrationTweak();
-  } else if (optionAutoZero>=2) {
+} else if (optionAutoZero==3 || (optionAutoZero==2 && ms<lastWokeTime+DefContinuous1AutoZeroTime)) {
 	// CONTINUALLY try calibrating small weights
 	doContinuousCalibrationTweakForScaleIfStableSmall(&jrscale1);
 	doContinuousCalibrationTweakForScaleIfStableSmall(&jrscale2);
@@ -455,10 +453,10 @@ bool JrWorkflow::advanceWorkflowMode(bool manualHuman) {
 	// clear some stuff
 	workflowModeChanges();
 
-	if (true || optionDebugLevel>0) {
-  	//Serial.print("ATTN: Advanced to workflow mode: ");
-  	//Serial.print(workflowMode);
-  	//Serial.println("");
+	if (optionDebugLevel>0) {
+  	Serial.print("ATTN: Advanced to workflow mode: ");
+  	Serial.print(workflowMode);
+  	Serial.println("");
   }
   
   // did user just finish a drink?
@@ -506,7 +504,7 @@ void JrWorkflow::setWorkflowModeEnable(bool val) {
 
 //---------------------------------------------------------------------------
 void JrWorkflow::resumeFromSleepOrStart(JrWorkflowStartModeEnum resumeMode) {
-	if (optionAutoZero>0) {
+	if (true || optionAutoZero>0) {
 		wantScheduleCalibrationTweak = true;
 	}
 
@@ -1264,7 +1262,6 @@ void JrWorkflow::checkAutoWorkflow() {
 			// ok cup is torn (by auto or user) and hopefully no espresso yet, just advance to next SUB step, waiting for espresso
 			workflowSubStepIndex = 2;
 		} else if (workflowSubStepIndex == 2 && isWeightSteadyIncreasing()) {
-
 			// weight is increasing due to espresso flow
 			// start timer and back-date it
 			startTimer(true);
@@ -1309,6 +1306,62 @@ void JrWorkflow::checkAutoWorkflow() {
 	
 	// BUT we need to track stable weights in case they remove their cup before they say they are done
 	if (workflowMode==JrWorkflowMode_All) {
+
+		// NEW 10/20/22 we want to detect when cup is moved from scale 1 to scale 2 and coordinate the torn weight 
+		if (workflowSubStepIndex==0) {
+			// stage 0 is the handover from scale 1 to scale 2
+			//if (true || optionDebugLevel>0) {
+			//	Serial.println("In workflow alla subindex 0.");
+			//}
+			if (isWeightStabilized(wfStableWeightElapsedTimeSuperShort) && isTearWeightOver(wfMinCupWeightForEspressoTare) && isTornWeightOver(0)) {
+				// ok we have weight stabilized and non-trivial
+				if (optionDebugLevel>0) {
+					Serial.println("In workflow 3b subindex 0b.");
+				}				
+				if (getMostWeightedScalep()==&jrscale2) {
+					// still on scale 2, do nothing but track weight?
+					// since weve already moved on to JrWorkflowMode_All we should stick with whatever measurement we mad 
+					if (optionDebugLevel>0) {
+						Serial.println("In workflow 3 subindex 0c.");
+					}
+					if (true) {
+						lastPositiveWeight = jrscalep->getDisplayWeight();
+						workflowWeights[JrWorkflowMode_All] = lastPositiveWeight;
+					}
+				} else {
+					if (!optionWeightSync || jrscalep->getDisplayWeight() - lastPositiveWeight > wfMaxWeightDifferentialToSkipWorkflowFinalScaleSync) {
+						// abort synnc
+						workflowSubStepIndex = 1;
+					} else {
+						// we are stable on main scale, we can coordinate weights and advance
+						// tell scale 1 that current weight should match the last weight we had on scale 2
+						workflowWeights[JrWorkflowMode_All] = lastPositiveWeight;
+						if (optionDebugLevel>0) {
+							Serial.println("Caling forceWeightSync with target weight.");
+							Serial.println(workflowWeights[JrWorkflowMode_All]);
+						}		
+						forceWeightSync(&jrscale1, workflowWeights[JrWorkflowMode_All]);
+							// and now advance
+						workflowSubStepIndex = 1;
+						// TEST
+						if (true) {
+							wfSignifyAutoStep();
+							//eventCallbackFp(JrEventCallbackEnum_PlayErrorSound);
+						}
+					}
+				}
+			} else {
+				// weight unstabilized, nothing to do
+			}
+			return;
+		}
+		
+		// dropping down here means we are in all worlflow and subindex >0 
+		
+		if (optionDebugLevel>0) {
+			Serial.println("In workflow all subindex >0.");
+		}
+
 		// keep track of latest stable weight
 		if (isWeightStabilized(wfStableWeightElapsedTimeShort) && isTornWeightOver(workflowWeights[JrWorkflowMode_Espresso]-1)) {
 			// weight of drink is stable so remember it
@@ -1336,9 +1389,12 @@ void JrWorkflow::checkAutoWorkflow() {
 
 
 
-
-
-
+//---------------------------------------------------------------------------
+void JrWorkflow::forceWeightSync(JrScale* scalep, float weight) {
+	// for now this is EXACTLy like a calibration step, EXCEPT that we want it to be temporary like a startup tare
+	scalep->doSetCalibrationTweakForCorrectedWeight(weight + scalep->getInternalTare());
+}
+//---------------------------------------------------------------------------
 
 
 
@@ -1886,16 +1942,26 @@ void JrWorkflow::doSetCalibrationTweakForScale(JrScale *scalep) {
 	if (!scalep) {
 		return;
 	}
+	
+	if (optionAutoZero==0) {
+		scalep->resetCalibrationTweaks();
+		return;
+	}
+	
+	
 	// IFF the scale has nominal weight on it (near 0), then we are going to tweak the 0 point to be truly 0
 	bool isStable = (scalep->getElapsedTimeSinceLastSignificantWeightChange() > wfCalStableWeightElapsedTime);
 	//float weight = scalep->getUntornWeight();
 	float weight = scalep->getUntornUnTweakedWeight();
 	if (!isStable || abs(weight)>wfCalMaxWeightToConsiderZero) {
 		// give up and don't reschedule(!)
-		if (true || optionDebugLevel>0) {
+		if (false || optionDebugLevel>0) {
 			Serial.println("Giving up trying to set calibration wake weight tweak.");
 		}
-		scalep->resetCalibrationTweaks();
+		// should we reset if we cant?
+		if (false) {
+			scalep->resetCalibrationTweaks();
+		}
 		return;
 	}
 	scalep->doSetCalibrationTweakForScaleFromRawWeight();
@@ -2052,7 +2118,7 @@ bool JrWorkflow::storeWorkflowedDrink() {
 
 
 //---------------------------------------------------------------------------
-void JrWorkflow::fillFinishedCoffeeInfo(char* username, char* coffeeTypeStr, int &outcoffeeId, int &outgrindSize, float &beanWeight, float &espressoWeight, float &finalWeight) {
+void JrWorkflow::fillFinishedCoffeeInfo(char* username, char* coffeeTypeStr, int &outcoffeeId, int &outgrindSize, float &beanWeight, float &espressoWeight, float &finalWeight, unsigned long &shotTime) {
 	strcpy(username, userName);
 	strcpy(coffeeTypeStr, coffeeName);
 	outcoffeeId = coffeeId;
@@ -2060,6 +2126,7 @@ void JrWorkflow::fillFinishedCoffeeInfo(char* username, char* coffeeTypeStr, int
 	beanWeight = workflowWeights[JrWorkflowMode_Beans];
 	espressoWeight = workflowWeights[JrWorkflowMode_Espresso];
 	finalWeight = workflowWeights[JrWorkflowMode_All];
+	shotTime = timerElapsedMs;
 }
 //---------------------------------------------------------------------------
 
@@ -2337,9 +2404,9 @@ void JrWorkflow::dislayRecipeStepInstructions() {
 void JrWorkflow::deltaRecipe(int delta) {
 	
 	// first time they switch to recipe, record updates espresso weight
-	if (workflowMode==JrWorkflowMode_All && workflowSubStepIndex==0) {
+	if (workflowMode==JrWorkflowMode_All && workflowSubStepIndex==1) {
 		// update espresso weight to current weight
-		workflowSubStepIndex = 1;
+		workflowSubStepIndex = 2;
 		if (abs(workflowWeights[JrWorkflowMode_All] - workflowWeights[JrWorkflowMode_Espresso]) < wfMaxWeightIncAfterEspressoToUpdateOnRecipe) {
 			workflowWeights[JrWorkflowMode_Espresso] = workflowWeights[JrWorkflowMode_All];
 		}

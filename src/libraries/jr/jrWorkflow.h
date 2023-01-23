@@ -16,10 +16,7 @@
 //---------------------------------------------------------------------------
 
 
-//---------------------------------------------------------------------------
-// lcd
-#include <LiquidCrystal_I2C.h>
-//---------------------------------------------------------------------------
+
 
 //---------------------------------------------------------------------------
 // multiscale
@@ -32,7 +29,7 @@
 //---------------------------------------------------------------------------
 
 //---------------------------------------------------------------------------
-#include <jrlcd.h>
+#include <jrlcdb.h>
 #include <jr7seg.h>
 #include <jrLcdMatrix.h>
 //---------------------------------------------------------------------------
@@ -158,6 +155,7 @@ public:
 	int optionScaleMode = 0;
 	int optionSoftZero = 0;
 	float optionBeanJarWeight = 100.0;
+	bool optionWeightSync = false;
 public:
 	// not yet changeable in options
 	//bool optionStartupCalibrationTweak = true;
@@ -202,7 +200,7 @@ protected:
 	// calibration and tare stuff
 	const unsigned long DefNewCalibrationPeriodMs = 1000;
 	const int DefTareStabilizeDelayMs = 250;
-	const unsigned long calStabilizeDelayMs = 500;
+	const unsigned long calStabilizeDelayMs = 1000;
 protected:
 	const bool blockWorkflowAdvanceOnBadWeights = true;
 protected:
@@ -216,6 +214,7 @@ protected:
 	const float wfMinCupWeightForEspressoTare = 50.0;			// min weight to trigger a tare for espresso shot
 	const float wfMaxMinimalTareThreshold = 10.0;						// any tare over this means a cup has been torn
 	const float wfMinWeightForPositiveStabilized = 5.0;
+	const float wfMaxWeightDifferentialToSkipWorkflowFinalScaleSync = 25.0;
 protected:
 	const float minWeightForPreferredScaleToDominate = 5;		// more than this we always rely on preferrred scale
 	const float minWeightDeltaForActiveScaleSwitch = 5;
@@ -236,8 +235,9 @@ protected:
 	const unsigned long wfStableWeightElapsedTimeCupRemovedAtEnd = 10000;
 	const unsigned wfMaxWeightIncAfterEspressoToUpdateOnRecipe = 5; // as long as not more than this many grams have been added when we switch to a recipe, update espresso weight to this value, to account for dripping
 	const unsigned long wfCalStableWeightElapsedTime = 250;
-	float wfCalMaxWeightToConsiderZero = 3.0;
-	float wfCalMaxWeightToConsiderZeroContinuous = 2.0;
+	const unsigned long DefContinuous1AutoZeroTime = 4000;
+	float wfCalMaxWeightToConsiderZero = 5.0;
+	float wfCalMaxWeightToConsiderZeroContinuous = 3.5;
 	//
 	const float wfMinBeanWeightToAssumeInContainer = 3.0;
 	const float wfBeanWeightToAssumeInContainerMin = 8.0;
@@ -279,7 +279,7 @@ public:
 public:
 	void begin();
 	void setOptions(int in_optionDebugLevel, bool in_optionRoundUp, int in_option7SegmentBrightness, int weightSmoothMode, int inoptionScaleMode, int inoptionSoftZero, int inoptionCalibrationTweakMethod, int in_optionAutoZero);
-	void setOptions2(float inoptionBeanJarWeight, int in_optionStartingWorkflowMode, int in_optionCheckWarnings);
+	void setOptions2(float inoptionBeanJarWeight, int in_optionStartingWorkflowMode, int in_optionCheckWarnings, int in_optionWeightSync);
 	void powerUp();
 	void powerDown();
 	void powerUpScale(JrScale *scalep);
@@ -372,6 +372,8 @@ public:
 	void settleMeasureScaleWeight(JrScale *scalep);
 	void queryScaleUpdateRawWeight(JrScale* scalep);
 public:
+	void forceWeightSync(JrScale* scalep, float weight);
+public:
 	void doMultiLoopScales();
 	void doMultiScaleQueryUpdateRawWeight();
 public:
@@ -384,7 +386,7 @@ public:
 	void setUsersLastCoffee(uint8_t coffeeId, char* inCoffeeLabel, uint8_t ingrindSize);
 public:
 	bool smartGuessBeanWeightInJarIfAppropriate();
-	void fillFinishedCoffeeInfo(char* username, char* coffeeTypeStr, int &oucoffeeId, int &outgrindSize, float &beanWeight, float &espressoWeight, float &finalWeight);
+	void fillFinishedCoffeeInfo(char* username, char* coffeeTypeStr, int &oucoffeeId, int &outgrindSize, float &beanWeight, float &espressoWeight, float &finalWeight, unsigned long &shotTime);
 public:
 	void prepareForSleepEarly();
 	void prepareForSleepLate();

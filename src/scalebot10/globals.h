@@ -90,6 +90,9 @@ float optionBeanJarWeight = 121;
 uint8_t optionCoffeeSelect = 1;
 //
 uint8_t optionCheckWarnings = 1;
+//
+uint8_t optionBlankSleep = 0;
+uint8_t optionSyncPouredWeights = 1;
 //---------------------------------------------------------------------------
 
 
@@ -105,8 +108,8 @@ const char* DefParamOptionsListOffLowMediumHigh[] = { "OFF", "Low", "Med", "High
 const char* DefParamOptionsStartMode[] = {"Last","Scale","WF",0};
 const char* DefParamOptionsSmoothMode[] = {"Inst.", "Slow", "Gap",0};
 const char* DefParamOptionsScaleMode[] = {"Auto","Dual", 0};
-const char* DefParamOptionsCalibTweak[] = {"None","Add","Mul",0};
-const char* DefParamOptionsAutoZero[] = {"Off","Wake","Cont.",0};
+const char* DefParamOptionsCalibTweak[] = {"None","Add","Mul","Mad",0};
+const char* DefParamOptionsAutoZero[] = {"Off","Wake","Cont1","Cont2",0};
 const char* DefParamOptionsListCheckWarnings[] = {"Off","Warn","Bars","Dots",0};
 //---------------------------------------------------------------------------
 
